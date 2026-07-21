@@ -81,6 +81,9 @@
   select{background:var(--panel2); color:var(--txt); border:1px solid var(--line); border-radius:8px; font-size:16px; padding:8px; width:100%;}
   .slotrow{display:flex; align-items:center; gap:10px; margin:8px 0;}
   .slotrow .lbl{width:64px; color:var(--sub); font-size:14px;}
+  .tabs{display:flex; gap:0; background:var(--panel2); border-radius:12px; overflow:hidden; margin-bottom:14px;}
+  .tabs .tabbtn{flex:1; background:transparent; padding:12px; font-size:17px; color:var(--sub); border-radius:0;}
+  .tabs .tabbtn.on{background:var(--blue); color:#fff; font-weight:700;}
   .pausebar{background:var(--amber); color:#111; text-align:center; padding:8px; font-weight:700; display:none;}
   .pausebar.show{display:block;}
   .statustag{font-size:12px; padding:2px 8px; border-radius:8px;}
@@ -170,7 +173,7 @@
       </div>
     </div>
     <table>
-      <thead><tr><th>姓名</th><th>積分</th><th>勝/敗</th><th>狀態</th><th style="width:180px;"></th></tr></thead>
+      <thead><tr><th>姓名</th><th>狀態</th><th style="width:180px;"></th></tr></thead>
       <tbody id="rosterBody"></tbody>
     </table>
     <div class="mbtns"><button class="cancel" onclick="closeOverlay('playersOverlay')">關閉</button></div>
@@ -252,14 +255,25 @@
 <!-- History modal -->
 <div class="overlay" id="historyOverlay">
   <div class="modal">
-    <h3>對戰紀錄</h3>
-    <div class="mbtns" style="margin-top:0;margin-bottom:10px;">
-      <button class="danger" onclick="undoLast()">↩ 還原上一場（比分輸入錯誤時）</button>
+    <div class="tabs">
+      <button class="tabbtn on" id="tabBtnMatches" onclick="switchTab('matches')">對戰紀錄</button>
+      <button class="tabbtn" id="tabBtnRank" onclick="switchTab('rank')">積分排行</button>
     </div>
-    <table>
-      <thead><tr><th>時間</th><th>場</th><th>隊伍 A</th><th>比分</th><th>隊伍 B</th><th>±分</th><th></th></tr></thead>
-      <tbody id="histBody"></tbody>
-    </table>
+    <div id="tabMatches">
+      <div class="mbtns" style="margin-top:0;margin-bottom:10px;">
+        <button class="danger" onclick="undoLast()">↩ 還原上一場（比分輸入錯誤時）</button>
+      </div>
+      <table>
+        <thead><tr><th>時間</th><th>場</th><th>隊伍 A</th><th>比分</th><th>隊伍 B</th><th>±分</th><th></th></tr></thead>
+        <tbody id="histBody"></tbody>
+      </table>
+    </div>
+    <div id="tabRank" style="display:none;">
+      <table>
+        <thead><tr><th>名次</th><th>姓名</th><th>積分</th><th>勝</th><th>敗</th><th>勝率</th></tr></thead>
+        <tbody id="rankBody"></tbody>
+      </table>
+    </div>
     <div class="mbtns"><button class="cancel" onclick="closeOverlay('historyOverlay')">關閉</button></div>
   </div>
 </div>
@@ -508,19 +522,17 @@ function wipeAll(){
 const stLabel={idle:'等待中',playing:'比賽中',resting:'休息',absent:'未簽到'};
 function renderRoster(){
   const tb=document.getElementById('rosterBody');
-  const list=Object.values(state.players).sort((a,b)=>b.elo-a.elo);
+  const list=Object.values(state.players).sort((a,b)=>a.name.localeCompare(b.name,'zh-Hant'));
   tb.innerHTML=list.map(p=>`
     <tr>
       <td>${esc(p.name)}</td>
-      <td>${p.elo}</td>
-      <td>${p.wins}/${p.losses}</td>
       <td><span class="statustag st-${p.status}">${stLabel[p.status]}</span></td>
       <td>
         ${p.status==='absent'?`<button class="mini act" onclick="setStatus('${p.id}','idle')">簽到</button>`:''}
         ${p.status==='idle'||p.status==='resting'?`<button class="mini" onclick="setStatus('${p.id}','absent')">離場</button>`:''}
         <button class="mini" onclick="delPlayer('${p.id}')">刪除</button>
       </td>
-    </tr>`).join('') || '<tr><td colspan="5" style="color:var(--sub)">尚無球員，請在上方輸入姓名新增</td></tr>';
+    </tr>`).join('') || '<tr><td colspan="3" style="color:var(--sub)">尚無球員，請在上方輸入姓名新增</td></tr>';
 }
 function openPlayers(){ renderRoster(); document.getElementById('playersOverlay').classList.add('show'); }
 
@@ -582,8 +594,22 @@ function renderHistory(){
     return `<tr><td>${hh}</td><td>${h.court}</td><td>${esc(h.a)}</td><td><b>${h.sa}:${h.sb}</b></td><td>${esc(h.b)}</td><td>${h.delta}</td><td>${editBtn}</td></tr>`;
   }).join('') || '<tr><td colspan="7" style="color:var(--sub)">尚無紀錄</td></tr>';
 }
+function renderRank(){
+  const list=Object.values(state.players).sort((a,b)=>b.elo-a.elo);
+  document.getElementById('rankBody').innerHTML=list.map((p,i)=>{
+    const rate=p.matches?Math.round(p.wins/p.matches*100)+'%':'—';
+    return `<tr><td>${i+1}</td><td>${esc(p.name)}</td><td><b>${p.elo}</b></td><td>${p.wins}</td><td>${p.losses}</td><td>${rate}</td></tr>`;
+  }).join('') || '<tr><td colspan="6" style="color:var(--sub)">尚無球員</td></tr>';
+}
+function switchTab(t){
+  document.getElementById('tabMatches').style.display=(t==='matches')?'':'none';
+  document.getElementById('tabRank').style.display=(t==='rank')?'':'none';
+  document.getElementById('tabBtnMatches').classList.toggle('on',t==='matches');
+  document.getElementById('tabBtnRank').classList.toggle('on',t==='rank');
+}
 function openHistory(){
   renderHistory();
+  renderRank();
   document.getElementById('historyOverlay').classList.add('show');
 }
 /* ---------- 修改/刪除場次：積分全部重算 ---------- */
