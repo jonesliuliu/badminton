@@ -284,9 +284,9 @@ const K = 32, START_ELO = 1500, MAX_COURTS = 4;
 
 /* ---------- 帳號（要新增/修改請聯絡管理者） ---------- */
 const ACCOUNTS = [
-  {name:'Jones',  hash:'7c78c98f'},   // 通行碼 1234
-  {name:'朋友A',  hash:'7c7b0c9f'},   // 通行碼 5678
-  {name:'朋友B',  hash:'7c7d4b29'}    // 通行碼 9999
+  {name:'Jones', hash:'7c78c98f'},
+  {name:'阿順',  hash:'7c783445'},
+  {name:'阿南',  hash:'7c7d4b29'}
 ];
 function hashCode(s){ let h=5381; for(const c of s){ h=((h<<5)+h+c.charCodeAt(0))>>>0; } return h.toString(16); }
 function accountKey(name){ return name==='Jones' ? LS_BASE : LS_BASE+'__'+name; } // Jones 沿用舊資料
