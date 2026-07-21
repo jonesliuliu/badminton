@@ -201,6 +201,7 @@
       <button class="ok" style="background:var(--blue)" onclick="document.getElementById('importFile').click()">⬆ 匯入備份</button>
     </div>
     <div class="mbtns">
+      <button class="cancel" id="voiceBtn" onclick="toggleVoice()">🔊 語音播報：開</button>
       <button class="cancel" onclick="logout()">🚪 登出（切換帳號）</button>
     </div>
     <div style="color:var(--sub);font-size:14px;margin:16px 0 10px;border-top:1px solid var(--line);padding-top:12px;">
@@ -385,9 +386,33 @@ function tryFillCourt(ci){
   c.match={teamA:split.teamA, teamB:split.teamB, startedAt:null};
   return true;
 }
+/* ---------- 語音播報 ---------- */
+function voiceOn(){ return state.voiceOn!==false; }   // 預設開啟
+function speak(text){
+  if(!voiceOn()) return;
+  try{
+    speechSynthesis.cancel();
+    const u=new SpeechSynthesisUtterance(text);
+    u.lang='zh-TW'; u.rate=0.95;
+    speechSynthesis.speak(u);
+  }catch(e){}
+}
+function toggleVoice(){
+  state.voiceOn=!voiceOn();
+  save();
+  document.getElementById('voiceBtn').textContent=voiceOn()?'🔊 語音播報：開':'🔇 語音播報：關';
+  if(voiceOn()) speak('語音播報已開啟');
+}
 function startMatch(ci){
   const m=state.courts[ci].match;
-  if(m && !m.startedAt){ m.startedAt=now(); save(); render(); }
+  if(m && !m.startedAt){
+    m.startedAt=now();
+    state.daySeq=(state.daySeq||0)+1;
+    speak(`第 ${state.daySeq} 場，場地 ${cLabel(ci)}。`
+      +`${P(m.teamA[0]).name}、${P(m.teamA[1]).name}，對上，`
+      +`${P(m.teamB[0]).name}、${P(m.teamB[1]).name}，比賽開始`);
+    save(); render();
+  }
 }
 // 取消預排，全部退回等待區（保留原本的等待順位）
 function disbandCourt(ci){
@@ -510,9 +535,13 @@ function resetDay(){
   state.courts.forEach(c=>{ c.match=null; c.prevFour=null; c.prevPairs=[]; });
   Object.values(state.players).forEach(p=>{ p.status='absent'; });
   state.paused=false;
+  state.daySeq=0;   // 場次編號歸零
   save(); render(); renderRoster();
 }
-function openSettings(){ document.getElementById('settingsOverlay').classList.add('show'); }
+function openSettings(){
+  document.getElementById('voiceBtn').textContent=voiceOn()?'🔊 語音播報：開':'🔇 語音播報：關';
+  document.getElementById('settingsOverlay').classList.add('show');
+}
 function wipeAll(){
   if(!confirm('清除所有資料？球員、積分、對戰紀錄將全部刪除且無法復原！')) return;
   if(!confirm('再次確認：真的要全部清除嗎？（建議先「⬇ 備份」）')) return;
