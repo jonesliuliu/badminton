@@ -204,6 +204,13 @@
       <button class="cancel" id="voiceBtn" onclick="toggleVoice()">🔊 語音播報：開</button>
       <button class="cancel" onclick="logout()">🚪 登出（切換帳號）</button>
     </div>
+    <div style="color:var(--sub);font-size:14px;margin:16px 0 8px;border-top:1px solid var(--line);padding-top:12px;">
+      刪除球員（積分與勝敗紀錄一併刪除，無法復原）：
+    </div>
+    <div style="display:flex;gap:10px;">
+      <select id="delSel" style="flex:1;"></select>
+      <button class="danger" style="padding:10px 20px;font-size:16px;" onclick="delPlayerFromSettings()">刪除</button>
+    </div>
     <div style="color:var(--sub);font-size:14px;margin:16px 0 10px;border-top:1px solid var(--line);padding-top:12px;">
       清除後此帳號的球員、積分、對戰紀錄全部歸零且無法復原，建議先「⬇ 備份」。
     </div>
@@ -524,11 +531,18 @@ function setStatus(id,st){
   if(st==='idle') p.waitSince=now();
   fillAllCourts(); save(); render(); renderRoster();
 }
-function delPlayer(id){
-  if(P(id).status==='playing'){ alert('比賽中無法刪除'); return; }
-  if(!confirm(`刪除球員「${P(id).name}」？積分紀錄將一併刪除`)) return;
+function delPlayerFromSettings(){
+  const id=document.getElementById('delSel').value;
+  if(!id){ alert('請先選擇球員'); return; }
+  if(P(id).status==='playing'){ alert('球員比賽中，無法刪除'); return; }
+  if(!confirm(`刪除球員「${P(id).name}」？積分與勝敗紀錄將一併刪除，無法復原`)) return;
   delete state.players[id];
-  save(); render(); renderRoster();
+  save(); render(); fillDelSel();
+}
+function fillDelSel(){
+  const list=Object.values(state.players).sort((a,b)=>a.name.localeCompare(b.name,'zh-Hant'));
+  document.getElementById('delSel').innerHTML='<option value="">— 選擇球員 —</option>'
+    + list.map(p=>`<option value="${p.id}">${esc(p.name)}（${p.elo}，${p.wins}勝${p.losses}敗）</option>`).join('');
 }
 function resetDay(){
   if(!confirm('開始新的一天？場上未結束的比賽將直接取消（不計分），所有球員設為「未簽到」（積分保留）')) return;
@@ -540,6 +554,7 @@ function resetDay(){
 }
 function openSettings(){
   document.getElementById('voiceBtn').textContent=voiceOn()?'🔊 語音播報：開':'🔇 語音播報：關';
+  fillDelSel();
   document.getElementById('settingsOverlay').classList.add('show');
 }
 function wipeAll(){
@@ -559,7 +574,6 @@ function renderRoster(){
       <td>
         ${p.status==='absent'?`<button class="mini act" onclick="setStatus('${p.id}','idle')">簽到</button>`:''}
         ${p.status==='idle'||p.status==='resting'?`<button class="mini" onclick="setStatus('${p.id}','absent')">離場</button>`:''}
-        <button class="mini" onclick="delPlayer('${p.id}')">刪除</button>
       </td>
     </tr>`).join('') || '<tr><td colspan="3" style="color:var(--sub)">尚無球員，請在上方輸入姓名新增</td></tr>';
 }
