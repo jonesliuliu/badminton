@@ -27,7 +27,7 @@
   #courts{flex:1; display:grid; gap:14px; grid-template-columns:repeat(auto-fit,minmax(300px,1fr));}
   .court{background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:14px; display:flex; flex-direction:column; gap:10px;}
   .court .head{display:flex; align-items:center; justify-content:space-between;}
-  .court .head .cname{font-size:18px; font-weight:700;}
+  .court .head .cname{font-size:18px; font-weight:700; cursor:pointer;}
   .court .head .time{color:var(--sub); font-size:14px;}
   .teams{display:flex; align-items:stretch; gap:8px;}
   .team{flex:1; background:var(--panel2); border-radius:12px; padding:10px;}
@@ -293,6 +293,7 @@ function initApp(name){
     snapshot: null        // for one-level undo
   };
   while (state.courts.length < MAX_COURTS) state.courts.push({match:null});
+  state.courts.forEach((c,i)=>{ if(!c.label) c.label=String(i+1); });   // 場地編號預設 1~4
   document.getElementById('loginOverlay').classList.remove('show');
   document.getElementById('whoami').textContent = '👤 '+name;
   render();
@@ -405,7 +406,7 @@ let scoreCtx=null; // {courtIdx, sa, sb, rest:Set}
 function openScore(ci){
   const m=state.courts[ci].match; if(!m) return;
   scoreCtx={courtIdx:ci, sa:21, sb:15, rest:new Set()};
-  document.getElementById('scoreTitle').textContent=`第 ${ci+1} 場地 — 輸入比分`;
+  document.getElementById('scoreTitle').textContent=`場地 ${cLabel(ci)} — 輸入比分`;
   document.getElementById('tnameA').textContent=names(m.teamA);
   document.getElementById('tnameB').textContent=names(m.teamB);
   renderScore();
@@ -434,7 +435,7 @@ function confirmScore(){
   state.snapshot=JSON.stringify({players:state.players, courts:state.courts, history:state.history});
   const delta=applyElo(m.teamA,m.teamB,sa,sb);
   state.history.unshift({
-    t:now(), court:courtIdx+1,
+    t:now(), court:cLabel(courtIdx),
     teamA:[...m.teamA], teamB:[...m.teamB],
     a:names(m.teamA), b:names(m.teamB), sa, sb,
     delta:(sa>sb?'+':'-')+delta
@@ -528,7 +529,7 @@ let adjCtx=null;
 function openAdjust(ci){
   const m=state.courts[ci].match; if(!m) return;
   adjCtx={courtIdx:ci, slots:[...m.teamA,...m.teamB]};
-  document.getElementById('adjTitle').textContent=`第 ${ci+1} 場地 — 手動調整名單`;
+  document.getElementById('adjTitle').textContent=`場地 ${cLabel(ci)} — 手動調整名單`;
   const idle=idleQueue();
   const wrap=document.getElementById('adjSlots');
   const labels=['A1','A2','B1','B2'];
@@ -685,14 +686,14 @@ function render(){
     if(c.match && c.match.startedAt){
       const mins=Math.floor((now()-c.match.startedAt)/60000);
       div.innerHTML=`
-        <div class="head"><span class="cname">第 ${i+1} 場地</span><span class="time">已進行 ${mins} 分</span></div>
+        <div class="head"><span class="cname" onclick="renameCourt(${i})">場地 ${esc(cLabel(i))} ✎</span><span class="time">已進行 ${mins} 分</span></div>
         <div class="teams">${teamHtml(c.match.teamA,'隊伍 A',i)}<div class="vs">VS</div>${teamHtml(c.match.teamB,'隊伍 B',i)}</div>
         <button class="endbtn" onclick="openScore(${i})">比賽結束</button>
         <div class="smallrow"><button onclick="openAdjust(${i})">✎ 手動調整名單</button></div>`;
     }else if(c.match){
       // 預排狀態：顯示下一場名單，按「開始比賽」才正式開打
       div.innerHTML=`
-        <div class="head"><span class="cname">第 ${i+1} 場地</span><span class="time" style="color:var(--amber);">下一場（準備中）</span></div>
+        <div class="head"><span class="cname" onclick="renameCourt(${i})">場地 ${esc(cLabel(i))} ✎</span><span class="time" style="color:var(--amber);">下一場（準備中）</span></div>
         <div class="teams">${teamHtml(c.match.teamA,'隊伍 A',i)}<div class="vs">VS</div>${teamHtml(c.match.teamB,'隊伍 B',i)}</div>
         <button class="startbtn" onclick="startMatch(${i})">▶ 開始比賽</button>
         <div class="smallrow">
@@ -702,7 +703,7 @@ function render(){
     }else{
       const q=idleQueue().length;
       div.innerHTML=`
-        <div class="head"><span class="cname">第 ${i+1} 場地</span><span class="time">空場</span></div>
+        <div class="head"><span class="cname" onclick="renameCourt(${i})">場地 ${esc(cLabel(i))} ✎</span><span class="time">空場</span></div>
         <div class="empty">${state.paused?'已暫停排場':(q<4?`等待球員（目前 ${q} 人，需 4 人）`:'')}</div>
         ${(!state.paused&&q>=4)?`<button class="startbtn" onclick="manualStart(${i})">▶ 開始排場</button>`:''}`;
     }
@@ -728,6 +729,16 @@ function render(){
     || '<div style="color:var(--sub);font-size:14px;">無人休息</div>';
 }
 function manualStart(ci){ tryFillCourt(ci); save(); render(); }
+function cLabel(ci){ return state.courts[ci].label || String(ci+1); }
+function renameCourt(ci){
+  const v=prompt('輸入場地編號（依球館提供，例如 3、5、B2）', cLabel(ci));
+  if(v===null) return;
+  const t=v.trim();
+  if(!t){ alert('編號不能空白'); return; }
+  if(t.length>6){ alert('編號請勿超過 6 個字'); return; }
+  state.courts[ci].label=t;
+  save(); render();
+}
 function closeOverlay(id){ document.getElementById(id).classList.remove('show'); }
 
 /* ---------- 拖拉替換（等待區 → 場上） ---------- */
