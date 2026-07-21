@@ -107,10 +107,9 @@
   <div class="seg" id="courtSeg"></div>
   <button class="hbtn" id="pauseBtn">⏸ 暫停排場</button>
   <div class="spacer"></div>
+  <span id="whoami" style="color:var(--sub);font-size:14px;"></span>
   <button class="hbtn" onclick="openPlayers()">👥 球員管理</button>
   <button class="hbtn" onclick="openHistory()">📜 紀錄</button>
-  <button class="hbtn" onclick="exportData()">⬇ 備份</button>
-  <button class="hbtn" onclick="document.getElementById('importFile').click()">⬆ 匯入</button>
   <button class="hbtn" onclick="openSettings()">⚙ 設定</button>
   <input type="file" id="importFile" accept=".json" style="display:none">
 </header>
@@ -194,13 +193,59 @@
 <div class="overlay" id="settingsOverlay">
   <div class="modal">
     <h3>⚙ 設定</h3>
-    <div style="color:var(--sub);font-size:14px;margin-bottom:10px;">
-      清除後球員、積分、對戰紀錄全部歸零且無法復原，建議先「⬇ 備份」。
+    <div class="mbtns" style="margin-top:0;">
+      <button class="ok" onclick="exportData()">⬇ 備份（下載 JSON）</button>
+      <button class="ok" style="background:var(--blue)" onclick="document.getElementById('importFile').click()">⬆ 匯入備份</button>
+    </div>
+    <div class="mbtns">
+      <button class="cancel" onclick="logout()">🚪 登出（切換帳號）</button>
+    </div>
+    <div style="color:var(--sub);font-size:14px;margin:16px 0 10px;border-top:1px solid var(--line);padding-top:12px;">
+      清除後此帳號的球員、積分、對戰紀錄全部歸零且無法復原，建議先「⬇ 備份」。
     </div>
     <div class="mbtns" style="margin-top:0;">
       <button class="danger" onclick="wipeAll()">🗑 清除所有資料</button>
     </div>
     <div class="mbtns"><button class="cancel" onclick="closeOverlay('settingsOverlay')">關閉</button></div>
+  </div>
+</div>
+
+<!-- Login overlay -->
+<div class="overlay" id="loginOverlay">
+  <div class="modal" style="max-width:420px;">
+    <h3>🏸 選擇帳號</h3>
+    <div class="chips" id="loginAccounts" style="margin-bottom:14px;"></div>
+    <input type="password" id="loginCode" inputmode="numeric" placeholder="輸入通行碼"
+      style="width:100%;background:var(--panel2);border:1px solid var(--line);border-radius:10px;color:var(--txt);font-size:22px;padding:12px;text-align:center;letter-spacing:6px;">
+    <div class="mbtns"><button class="ok" onclick="tryLogin()">進入</button></div>
+  </div>
+</div>
+
+<!-- Edit match modal -->
+<div class="overlay" id="editOverlay">
+  <div class="modal" style="max-width:520px;">
+    <h3>✎ 修改比分</h3>
+    <div class="scorerow">
+      <div class="scorebox">
+        <div class="tname" id="etnameA"></div>
+        <div class="scoreval" id="esvA">21</div>
+        <div class="pmrow"><button onclick="ebump('A',-1)">−</button><button onclick="ebump('A',1)">＋</button></div>
+      </div>
+      <div class="vs">：</div>
+      <div class="scorebox">
+        <div class="tname" id="etnameB"></div>
+        <div class="scoreval" id="esvB">15</div>
+        <div class="pmrow"><button onclick="ebump('B',-1)">−</button><button onclick="ebump('B',1)">＋</button></div>
+      </div>
+    </div>
+    <div style="color:var(--sub);font-size:13px;">儲存後所有球員積分會依全部紀錄重新計算</div>
+    <div class="mbtns">
+      <button class="danger" onclick="deleteMatch()">🗑 刪除此場次</button>
+    </div>
+    <div class="mbtns">
+      <button class="cancel" onclick="closeOverlay('editOverlay')">取消</button>
+      <button class="ok" onclick="saveEdit()">儲存</button>
+    </div>
   </div>
 </div>
 
@@ -212,7 +257,7 @@
       <button class="danger" onclick="undoLast()">↩ 還原上一場（比分輸入錯誤時）</button>
     </div>
     <table>
-      <thead><tr><th>時間</th><th>場</th><th>隊伍 A</th><th>比分</th><th>隊伍 B</th><th>±分</th></tr></thead>
+      <thead><tr><th>時間</th><th>場</th><th>隊伍 A</th><th>比分</th><th>隊伍 B</th><th>±分</th><th></th></tr></thead>
       <tbody id="histBody"></tbody>
     </table>
     <div class="mbtns"><button class="cancel" onclick="closeOverlay('historyOverlay')">關閉</button></div>
@@ -220,19 +265,65 @@
 </div>
 
 <script>
-const LS_KEY = 'badminton_app_v1';
+const LS_BASE = 'badminton_app_v1';
 const K = 32, START_ELO = 1500, MAX_COURTS = 4;
 
-let state = load() || {
-  players: {},          // id -> {id,name,elo,wins,losses,matches,status,waitSince}
-  courtCount: 2,
-  courts: [],           // [{match:{teamA:[id,id],teamB:[id,id],startedAt}} | {match:null}]
-  paused: false,
-  history: [],          // newest first
-  seq: 1,
-  snapshot: null        // for one-level undo
-};
-while (state.courts.length < MAX_COURTS) state.courts.push({match:null});
+/* ---------- 帳號（要新增/修改請聯絡管理者） ---------- */
+const ACCOUNTS = [
+  {name:'Jones',  hash:'7c78c98f'},   // 通行碼 1234
+  {name:'朋友A',  hash:'7c7b0c9f'},   // 通行碼 5678
+  {name:'朋友B',  hash:'7c7d4b29'}    // 通行碼 9999
+];
+function hashCode(s){ let h=5381; for(const c of s){ h=((h<<5)+h+c.charCodeAt(0))>>>0; } return h.toString(16); }
+function accountKey(name){ return name==='Jones' ? LS_BASE : LS_BASE+'__'+name; } // Jones 沿用舊資料
+
+let LS_KEY = null;
+let state = null;
+let loginSel = null;
+
+function initApp(name){
+  LS_KEY = accountKey(name);
+  state = load() || {
+    players: {},          // id -> {id,name,elo,wins,losses,matches,status,waitSince}
+    courtCount: 2,
+    courts: [],           // [{match:{teamA:[id,id],teamB:[id,id],startedAt}} | {match:null}]
+    paused: false,
+    history: [],          // newest first
+    seq: 1,
+    snapshot: null        // for one-level undo
+  };
+  while (state.courts.length < MAX_COURTS) state.courts.push({match:null});
+  document.getElementById('loginOverlay').classList.remove('show');
+  document.getElementById('whoami').textContent = '👤 '+name;
+  render();
+}
+function showLogin(){
+  const box=document.getElementById('loginAccounts');
+  box.innerHTML='';
+  ACCOUNTS.forEach(a=>{
+    const b=document.createElement('button');
+    b.className='chip'; b.textContent=a.name;
+    b.onclick=()=>{ loginSel=a.name;
+      box.querySelectorAll('.chip').forEach(x=>x.classList.remove('rest'));
+      b.classList.add('rest'); };
+    box.appendChild(b);
+  });
+  document.getElementById('loginOverlay').classList.add('show');
+}
+function tryLogin(){
+  const acc=ACCOUNTS.find(a=>a.name===loginSel);
+  if(!acc){ alert('請先選擇帳號'); return; }
+  const code=document.getElementById('loginCode').value.trim();
+  if(hashCode(code)!==acc.hash){ alert('通行碼錯誤'); return; }
+  localStorage.setItem('bm_account', acc.name);
+  document.getElementById('loginCode').value='';
+  initApp(acc.name);
+}
+function logout(){
+  if(!confirm('登出並回到帳號選擇畫面？（資料會保留）')) return;
+  localStorage.removeItem('bm_account');
+  location.reload();
+}
 
 function load(){ try{ return JSON.parse(localStorage.getItem(LS_KEY)); }catch(e){ return null; } }
 function save(){ localStorage.setItem(LS_KEY, JSON.stringify(state)); }
@@ -344,6 +435,7 @@ function confirmScore(){
   const delta=applyElo(m.teamA,m.teamB,sa,sb);
   state.history.unshift({
     t:now(), court:courtIdx+1,
+    teamA:[...m.teamA], teamB:[...m.teamB],
     a:names(m.teamA), b:names(m.teamB), sa, sb,
     delta:(sa>sb?'+':'-')+delta
   });
@@ -480,14 +572,60 @@ function setCourtCount(n){
 }
 
 /* ---------- History / backup ---------- */
-function openHistory(){
+function renderHistory(){
   const tb=document.getElementById('histBody');
-  tb.innerHTML=state.history.slice(0,50).map(h=>{
+  tb.innerHTML=state.history.slice(0,50).map((h,i)=>{
     const d=new Date(h.t);
     const hh=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
-    return `<tr><td>${hh}</td><td>${h.court}</td><td>${esc(h.a)}</td><td><b>${h.sa}:${h.sb}</b></td><td>${esc(h.b)}</td><td>${h.delta}</td></tr>`;
-  }).join('') || '<tr><td colspan="6" style="color:var(--sub)">尚無紀錄</td></tr>';
+    const editBtn=h.teamA?`<button class="mini" onclick="openEdit(${i})">✎ 修改</button>`:'';
+    return `<tr><td>${hh}</td><td>${h.court}</td><td>${esc(h.a)}</td><td><b>${h.sa}:${h.sb}</b></td><td>${esc(h.b)}</td><td>${h.delta}</td><td>${editBtn}</td></tr>`;
+  }).join('') || '<tr><td colspan="7" style="color:var(--sub)">尚無紀錄</td></tr>';
+}
+function openHistory(){
+  renderHistory();
   document.getElementById('historyOverlay').classList.add('show');
+}
+/* ---------- 修改/刪除場次：積分全部重算 ---------- */
+function recalcAll(){
+  Object.values(state.players).forEach(p=>{ p.elo=START_ELO; p.wins=0; p.losses=0; p.matches=0; });
+  const chron=[...state.history].reverse();   // 由舊到新重播
+  for(const h of chron){
+    if(!h.teamA || !h.teamB) continue;                          // 舊版紀錄無球員資料，略過
+    if([...h.teamA,...h.teamB].some(id=>!P(id))) continue;      // 球員已刪除，略過
+    const d=applyElo(h.teamA, h.teamB, h.sa, h.sb);
+    h.delta=(h.sa>h.sb?'+':'-')+d;
+  }
+  state.snapshot=null;   // 重算後舊快照失效
+}
+let editCtx=null; // {index, sa, sb}
+function openEdit(i){
+  const h=state.history[i];
+  if(!h || !h.teamA){ alert('此筆為舊版紀錄，無法修改'); return; }
+  editCtx={index:i, sa:h.sa, sb:h.sb};
+  document.getElementById('etnameA').textContent=h.a;
+  document.getElementById('etnameB').textContent=h.b;
+  renderEdit();
+  document.getElementById('editOverlay').classList.add('show');
+}
+function renderEdit(){
+  document.getElementById('esvA').textContent=editCtx.sa;
+  document.getElementById('esvB').textContent=editCtx.sb;
+}
+function ebump(t,d){ const k=t==='A'?'sa':'sb'; editCtx[k]=Math.min(30,Math.max(0,editCtx[k]+d)); renderEdit(); }
+function saveEdit(){
+  if(editCtx.sa===editCtx.sb){ alert('比分不能相同'); return; }
+  const h=state.history[editCtx.index];
+  h.sa=editCtx.sa; h.sb=editCtx.sb;
+  recalcAll();
+  closeOverlay('editOverlay');
+  save(); render(); renderHistory();
+}
+function deleteMatch(){
+  if(!confirm('刪除此場次紀錄？積分將重新計算')) return;
+  state.history.splice(editCtx.index,1);
+  recalcAll();
+  closeOverlay('editOverlay');
+  save(); render(); renderHistory();
 }
 function exportData(){
   const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
@@ -650,8 +788,11 @@ function swapIn(qid, ci, outId){
   save();
 }
 
-render();
-setInterval(render, 30000);   // 每 30 秒更新等待/比賽時間
+/* ---------- 啟動 ---------- */
+const savedAcc = localStorage.getItem('bm_account');
+if(savedAcc && ACCOUNTS.some(a=>a.name===savedAcc)) initApp(savedAcc);
+else showLogin();
+setInterval(()=>{ if(state) render(); }, 30000);   // 每 30 秒更新等待/比賽時間
 </script>
 </body>
 </html>
