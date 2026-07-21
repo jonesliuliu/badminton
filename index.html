@@ -111,6 +111,7 @@
   <button class="hbtn" onclick="openHistory()">📜 紀錄</button>
   <button class="hbtn" onclick="exportData()">⬇ 備份</button>
   <button class="hbtn" onclick="document.getElementById('importFile').click()">⬆ 匯入</button>
+  <button class="hbtn" onclick="openSettings()">⚙ 設定</button>
   <input type="file" id="importFile" accept=".json" style="display:none">
 </header>
 <div class="pausebar" id="pausebar">已暫停自動排場 — 比賽結束後不會自動安排下一場</div>
@@ -186,6 +187,20 @@
       <button class="cancel" onclick="closeOverlay('adjustOverlay')">取消</button>
       <button class="ok" onclick="confirmAdjust()">確認</button>
     </div>
+  </div>
+</div>
+
+<!-- Settings modal -->
+<div class="overlay" id="settingsOverlay">
+  <div class="modal">
+    <h3>⚙ 設定</h3>
+    <div style="color:var(--sub);font-size:14px;margin-bottom:10px;">
+      清除後球員、積分、對戰紀錄全部歸零且無法復原，建議先「⬇ 備份」。
+    </div>
+    <div class="mbtns" style="margin-top:0;">
+      <button class="danger" onclick="wipeAll()">🗑 清除所有資料</button>
+    </div>
+    <div class="mbtns"><button class="cancel" onclick="closeOverlay('settingsOverlay')">關閉</button></div>
   </div>
 </div>
 
@@ -389,6 +404,13 @@ function resetDay(){
   Object.values(state.players).forEach(p=>{ p.status='absent'; });
   state.paused=false;
   save(); render(); renderRoster();
+}
+function openSettings(){ document.getElementById('settingsOverlay').classList.add('show'); }
+function wipeAll(){
+  if(!confirm('清除所有資料？球員、積分、對戰紀錄將全部刪除且無法復原！')) return;
+  if(!confirm('再次確認：真的要全部清除嗎？（建議先「⬇ 備份」）')) return;
+  localStorage.removeItem(LS_KEY);
+  location.reload();
 }
 const stLabel={idle:'等待中',playing:'比賽中',resting:'休息',absent:'未簽到'};
 function renderRoster(){
