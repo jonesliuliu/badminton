@@ -382,8 +382,9 @@ function tryFillCourt(ci){
   const avoid=(c.prevFour===fourKey)?(c.prevPairs||[]):[];
   const split=bestSplit(four, avoid);
   four.forEach(p=>p.status='playing');
-  // startedAt=null → 先預排顯示，按「開始比賽」才正式開打
-  c.match={teamA:split.teamA, teamB:split.teamB, startedAt:null};
+  // startedAt=null → 先預排顯示，按「開始比賽」才正式開打；場次編號在預排時就配發
+  state.daySeq=(state.daySeq||0)+1;
+  c.match={teamA:split.teamA, teamB:split.teamB, startedAt:null, seq:state.daySeq};
   return true;
 }
 /* ---------- 語音播報 ---------- */
@@ -407,8 +408,7 @@ function startMatch(ci){
   const m=state.courts[ci].match;
   if(m && !m.startedAt){
     m.startedAt=now();
-    state.daySeq=(state.daySeq||0)+1;
-    speak(`第 ${state.daySeq} 場，場地 ${cLabel(ci)}。`
+    speak(`第 ${m.seq||''} 場，場地 ${cLabel(ci)}。`
       +`${P(m.teamA[0]).name}、${P(m.teamA[1]).name}，對上，`
       +`${P(m.teamB[0]).name}、${P(m.teamB[1]).name}，比賽開始`);
     save(); render();
@@ -418,6 +418,7 @@ function startMatch(ci){
 function disbandCourt(ci){
   const m=state.courts[ci].match; if(!m) return;
   [...m.teamA,...m.teamB].forEach(id=>{ P(id).status='idle'; });
+  if(m.seq && m.seq===state.daySeq) state.daySeq--;   // 取消最新場次時，編號退回
   state.courts[ci].match=null;
   save(); render();
 }
@@ -741,14 +742,14 @@ function render(){
     if(c.match && c.match.startedAt){
       const mins=Math.floor((now()-c.match.startedAt)/60000);
       div.innerHTML=`
-        <div class="head"><span class="cname" onclick="renameCourt(${i})">場地 ${esc(cLabel(i))} ✎</span><span class="time">已進行 ${mins} 分</span></div>
+        <div class="head"><span class="cname" onclick="renameCourt(${i})">場地 ${esc(cLabel(i))} ✎</span><span class="time">${c.match.seq?`第 ${c.match.seq} 場・`:''}已進行 ${mins} 分</span></div>
         <div class="teams">${teamHtml(c.match.teamA,'隊伍 A',i)}<div class="vs">VS</div>${teamHtml(c.match.teamB,'隊伍 B',i)}</div>
         <button class="endbtn" onclick="openScore(${i})">比賽結束</button>
         <div class="smallrow"><button onclick="openAdjust(${i})">✎ 手動調整名單</button></div>`;
     }else if(c.match){
       // 預排狀態：顯示下一場名單，按「開始比賽」才正式開打
       div.innerHTML=`
-        <div class="head"><span class="cname" onclick="renameCourt(${i})">場地 ${esc(cLabel(i))} ✎</span><span class="time" style="color:var(--amber);">下一場（準備中）</span></div>
+        <div class="head"><span class="cname" onclick="renameCourt(${i})">場地 ${esc(cLabel(i))} ✎</span><span class="time" style="color:var(--amber);">${c.match.seq?`第 ${c.match.seq} 場・`:''}準備中</span></div>
         <div class="teams">${teamHtml(c.match.teamA,'隊伍 A',i)}<div class="vs">VS</div>${teamHtml(c.match.teamB,'隊伍 B',i)}</div>
         <button class="startbtn" onclick="startMatch(${i})">▶ 開始比賽</button>
         <div class="smallrow">
