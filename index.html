@@ -81,6 +81,15 @@
   select{background:var(--panel2); color:var(--txt); border:1px solid var(--line); border-radius:8px; font-size:16px; padding:8px; width:100%;}
   .slotrow{display:flex; align-items:center; gap:10px; margin:8px 0;}
   .slotrow .lbl{width:64px; color:var(--sub); font-size:14px;}
+  /* 操作手冊 */
+  .manual h4{margin:16px 0 6px; font-size:16px; color:var(--blue);
+    border-left:4px solid var(--blue); padding-left:8px;}
+  .manual p,.manual li{font-size:15px; line-height:1.65; color:var(--txt);}
+  .manual ol,.manual ul{margin:4px 0; padding-left:22px;}
+  .manual li{margin:4px 0;}
+  .manual b{color:#fff;}
+  .manual .mwarn{background:#78350f; border-radius:10px; padding:10px 12px; margin-top:14px;}
+  .manual .mwarn p{color:#fde68a; font-size:14px; margin:4px 0;}
   .tabs{display:flex; gap:0; background:var(--panel2); border-radius:12px; overflow:hidden; margin-bottom:14px;}
   .tabs .tabbtn{flex:1; background:transparent; padding:12px; font-size:17px; color:var(--sub); border-radius:0;}
   .tabs .tabbtn.on{background:var(--blue); color:#fff; font-weight:700;}
@@ -197,6 +206,9 @@
   <div class="modal">
     <h3>⚙ 設定</h3>
     <div class="mbtns" style="margin-top:0;">
+      <button class="cancel" onclick="closeOverlay('settingsOverlay');document.getElementById('manualOverlay').classList.add('show')">📖 操作手冊</button>
+    </div>
+    <div class="mbtns">
       <button class="ok" onclick="exportData()">⬇ 備份（下載 JSON）</button>
       <button class="ok" style="background:var(--blue)" onclick="document.getElementById('importFile').click()">⬆ 匯入備份</button>
     </div>
@@ -218,6 +230,61 @@
       <button class="danger" onclick="wipeAll()">🗑 清除所有資料</button>
     </div>
     <div class="mbtns"><button class="cancel" onclick="closeOverlay('settingsOverlay')">關閉</button></div>
+  </div>
+</div>
+
+<!-- Manual modal -->
+<div class="overlay" id="manualOverlay">
+  <div class="modal manual">
+    <h3>📖 操作手冊</h3>
+
+    <h4>1｜登入</h4>
+    <p>開啟後選擇自己的帳號 → 輸入通行碼 → 進入。同一台裝置會記住帳號；換帳號請至「設定 → 登出」。</p>
+
+    <h4>2｜每次打球的流程</h4>
+    <ol>
+      <li>球員管理 → 點 <b>「新的一天」</b>（簽到歸零，積分保留，場上未完賽事取消不計分）</li>
+      <li>球員到場後逐一點 <b>簽到</b>；新朋友輸入姓名後「＋新增並簽到」</li>
+      <li>滿 4 人自動排出「<b>準備中</b>」名單，就位後點 <b>▶ 開始比賽</b>（會語音播報）</li>
+      <li>打完點綠色大按鈕 <b>比賽結束</b> → 輸入比分 → <b>確認結束</b></li>
+      <li>四人自動回等待區排隊尾；想休息的人在等待區點「<b>休息</b>」，回場時到休息區點「回等待區」</li>
+    </ol>
+
+    <h4>3｜排場規則（自動）</h4>
+    <ul>
+      <li>優先讓「<b>等最久</b>」的 4 人上場</li>
+      <li>4 人中自動選出兩隊<b>積分最接近</b>的分法；同 4 人連打會自動輪換搭檔</li>
+      <li>積分採 <b>Elo 制</b>：贏弱隊加分少、爆冷贏強隊加分多，分差越大加減越多</li>
+    </ul>
+
+    <h4>4｜拖曳操作（換人／調整隊友）</h4>
+    <ul>
+      <li><b>按住名字約半秒</b>（或水平快滑），名字浮起即可拖曳</li>
+      <li>等待區 → 場上球員：<b>換人上場</b>，被換者回等待區</li>
+      <li>場上 → 同場另一人：<b>互換位置、調整隊友</b>；拖到別場地則兩場互換</li>
+      <li>場上 → 等待區某人：該人上場、場上的人下場</li>
+    </ul>
+
+    <h4>5｜其他常用操作</h4>
+    <ul>
+      <li><b>場地數</b>：頂端 1～4 切換；<b>場地編號</b>：點場地標題（✎）輸入球館編號</li>
+      <li><b>暫停排場</b>：比賽結束後不自動排下一場</li>
+      <li><b>紀錄</b>：「對戰紀錄」可修改／刪除場次（積分自動重算）、「還原上一場」；「積分排行」看名次勝率</li>
+    </ul>
+
+    <h4>6｜設定與資料</h4>
+    <ul>
+      <li><b>備份</b>：下載 JSON，建議每次打完做一次；<b>匯入</b>可還原</li>
+      <li><b>語音播報</b>：開始比賽時唸出場次與名單，可開關</li>
+      <li><b>刪除球員</b>／<b>清除所有資料</b>：無法復原，請先備份</li>
+    </ul>
+
+    <div class="mwarn">
+      <p>・資料存在「這台裝置」裡，換裝置不會自動同步（需備份 → 匯入）</p>
+      <p>・清除 Safari 瀏覽資料會把積分一起清掉，請先備份！</p>
+    </div>
+
+    <div class="mbtns"><button class="cancel" onclick="closeOverlay('manualOverlay')">關閉</button></div>
   </div>
 </div>
 
