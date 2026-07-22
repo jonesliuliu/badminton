@@ -154,10 +154,6 @@
         <div class="presets"><button onclick="setScore('B',21)">21</button><button onclick="setScore('B',15)">15</button><button onclick="setScore('B',11)">11</button></div>
       </div>
     </div>
-    <div class="restsec">
-      <div class="hint">下場後要「休息」的球員請點選（未點選者自動回到等待區）：</div>
-      <div class="chips" id="restChips"></div>
-    </div>
     <div class="mbtns">
       <button class="cancel" onclick="closeOverlay('scoreOverlay')">取消</button>
       <button class="ok" onclick="confirmScore()">確認結束</button>
@@ -455,20 +451,11 @@ function applyElo(teamA, teamB, sa, sb){
 let scoreCtx=null; // {courtIdx, sa, sb, rest:Set}
 function openScore(ci){
   const m=state.courts[ci].match; if(!m) return;
-  scoreCtx={courtIdx:ci, sa:21, sb:15, rest:new Set()};
+  scoreCtx={courtIdx:ci, sa:21, sb:15};
   document.getElementById('scoreTitle').textContent=`場地 ${cLabel(ci)} — 輸入比分`;
   document.getElementById('tnameA').textContent=names(m.teamA);
   document.getElementById('tnameB').textContent=names(m.teamB);
   renderScore();
-  const chips=document.getElementById('restChips');
-  chips.innerHTML='';
-  [...m.teamA,...m.teamB].forEach(id=>{
-    const b=document.createElement('button');
-    b.className='chip'; b.textContent=P(id).name;
-    b.onclick=()=>{ scoreCtx.rest.has(id)?scoreCtx.rest.delete(id):scoreCtx.rest.add(id);
-      b.classList.toggle('rest'); };
-    chips.appendChild(b);
-  });
   document.getElementById('scoreOverlay').classList.add('show');
 }
 function renderScore(){
@@ -478,7 +465,7 @@ function renderScore(){
 function bump(t,d){ const k=t==='A'?'sa':'sb'; scoreCtx[k]=Math.min(30,Math.max(0,scoreCtx[k]+d)); renderScore(); }
 function setScore(t,v){ scoreCtx[t==='A'?'sa':'sb']=v; renderScore(); }
 function confirmScore(){
-  const {courtIdx,sa,sb,rest}=scoreCtx;
+  const {courtIdx,sa,sb}=scoreCtx;
   if(sa===sb){ alert('比分不能相同'); return; }
   const m=state.courts[courtIdx].match;
   // 快照（供還原）
@@ -499,8 +486,7 @@ function confirmScore(){
   else{ court.prevFour=fourKey; court.prevPairs=[pk]; }
   [...m.teamA,...m.teamB].forEach(id=>{
     const p=P(id);
-    if(rest.has(id)){ p.status='resting'; }
-    else{ p.status='idle'; p.waitSince=now(); }
+    p.status='idle'; p.waitSince=now();   // 全員回等待區，想休息自行在等待區點「休息」
   });
   state.courts[courtIdx].match=null;
   closeOverlay('scoreOverlay');
