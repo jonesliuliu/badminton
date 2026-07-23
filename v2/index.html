@@ -356,7 +356,7 @@ const firebaseConfig = {
   messagingSenderId: "223475807993",
   appId: "1:223475807993:web:e62e327f9a8ae43e479428"
 };
-const APP_VER='v2.8.9（2026-07-23）';
+const APP_VER='v2.9.0（2026-07-23）';
 try{ history.scrollRestoration='manual'; }catch(e){}
 function fitHeader(){}
 function resetScroll(){ const m=document.getElementById('appView'); if(m) m.scrollTop=0; window.scrollTo(0,0); }
@@ -1651,7 +1651,7 @@ function renderLive(){
     cb+=`<div class="cb-teams">${team(m.teamA,'A')}<div class="cb-vs">VS</div>${team(m.teamB,'B')}</div>`;
     if(mgr){
       cb+= started
-        ? `<div class="row"><button class="ok" style="flex:1;font-size:19px;padding:14px;" onclick="liveEnd(${i})">比賽結束</button><button class="mini red" onclick="liveAbort(${i})">取消比賽</button></div>`
+        ? `<div class="row" style="align-items:stretch;"><button class="ok" style="flex:1;font-size:19px;padding:14px;" onclick="liveEnd(${i})">比賽結束</button><button class="danger" style="flex:0 0 auto;padding:0 12px;font-size:14px;" onclick="liveAbort(${i})">取消比賽</button></div>`
         : `<div class="row"><button class="pri" style="flex:1;font-size:19px;padding:14px;" onclick="liveStart(${i})">▶ 開始比賽</button></div>`;
     }
     cb+='</div>';
