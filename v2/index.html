@@ -20,7 +20,38 @@
   .spacer{flex:1;}
   .hbtn{padding:10px 16px; background:var(--panel2);}
   .hbtn.on{background:var(--blue);}
-  main{padding:14px; max-width:760px; margin:0 auto;}
+  main{padding:14px; max-width:1000px; margin:0 auto;}
+  /* 球場看板 */
+  #courtsWrap{display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:12px;}
+  .courtboard{background:var(--panel2); border:1px solid var(--line); border-radius:14px; padding:12px;}
+  .cb-head{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:4px;}
+  .cb-teams{display:flex; gap:8px; align-items:stretch; margin:8px 0;}
+  .cb-vs{align-self:center; font-weight:900; font-size:20px; color:var(--sub);}
+  .cb-team{flex:1; border-radius:12px; padding:10px; display:flex; flex-direction:column; gap:8px;}
+  .cb-team.a{background:#1d4ed8;}
+  .cb-team.b{background:#b45309;}
+  .cb-team .pchip{background:rgba(0,0,0,.30); width:100%; justify-content:space-between;
+    font-size:clamp(20px,2.6vw,30px); font-weight:700; padding:10px 14px;}
+  .cb-team .pchip small{font-size:13px; color:#e2e8f0;}
+  .cb-team .emptycell{width:100%; justify-content:center; padding:14px; font-size:16px;}
+  /* 底部功能列（手機） */
+  #botbar{display:none; position:fixed; bottom:0; left:0; right:0; background:var(--panel);
+    border-top:1px solid var(--line); z-index:45;}
+  #botbar button{flex:1; background:transparent; color:var(--sub);
+    padding:8px 2px calc(10px + env(safe-area-inset-bottom)); font-size:11px; border-radius:0;
+    display:flex; flex-direction:column; gap:2px; align-items:center;}
+  #botbar button .ic{font-size:20px;}
+  #botbar button.on{color:#fff; background:var(--blue);}
+  #botbar button.hide{display:none;}
+  #navBack.hide{display:none !important;}
+  @media (max-width:700px){
+    header .hbtn{display:none;}
+    #evBind .hbtn{display:block;}
+    #navBack{display:block;}
+    #botbar.ready{display:flex;}
+    main{padding-bottom:96px;}
+    .cb-team .pchip{font-size:22px;}
+  }
   .card{background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:14px; margin-bottom:14px;}
   .card h2{margin:0 0 10px; font-size:17px;}
   .sub{color:var(--sub); font-size:13px;}
@@ -134,6 +165,25 @@
   <div id="adminView" class="hide"></div>
 </main>
 
+<nav id="botbar">
+  <button id="bNavLive" onclick="showView('live')"><span class="ic">🏟</span>現場</button>
+  <button onclick="openCheckin()"><span class="ic">✅</span>簽到</button>
+  <button id="bNavSignup" onclick="showView('signup')"><span class="ic">📅</span>報名</button>
+  <button id="bNavRank" onclick="showView('rank')"><span class="ic">📊</span>排行</button>
+  <button id="bNavManage" class="hide" onclick="showView('manage')"><span class="ic">🛠</span>管理</button>
+  <button onclick="openMore()"><span class="ic">⋯</span>更多</button>
+</nav>
+
+<div class="overlay" id="moreDlg">
+  <div class="dlgbox" style="max-width:340px;">
+    <div class="dlgbtns" style="flex-direction:column;margin-top:0;">
+      <button class="cancel" onclick="closeMore();changeMyPw()">🔑 改密碼</button>
+      <button class="danger" onclick="logout()">登出</button>
+      <button class="cancel" onclick="closeMore()">關閉</button>
+    </div>
+  </div>
+</div>
+
 <div class="overlay" id="evsetDlg">
   <div class="dlgbox">
     <div class="msg" id="evsetTitle" style="font-weight:700;"></div>
@@ -206,7 +256,7 @@ const firebaseConfig = {
   messagingSenderId: "223475807993",
   appId: "1:223475807993:web:e62e327f9a8ae43e479428"
 };
-const APP_VER='v2.5.7（2026-07-23）';
+const APP_VER='v2.6.0-beta（2026-07-23）';
 document.getElementById('verTag').textContent='版本 '+APP_VER;
 const fbApp = initializeApp(firebaseConfig);
 const db = getFirestore(fbApp);
@@ -364,6 +414,8 @@ async function enterApp(){
   $('navRank').classList.remove('hide');
   $('navCheckin').classList.remove('hide');
   $('navDiv').classList.remove('hide');
+  $('botbar').classList.add('ready');
+  $('bNavManage').classList.toggle('hide', session.me.role!=='manager');
   await refreshMembers();
   await refreshVenues();
   watchEvents();
@@ -380,6 +432,7 @@ async function enterAdmin(){
   $('navSignup').classList.add('hide');
   $('navCheckin').classList.add('hide');
   $('navDiv').classList.add('hide');
+  $('botbar').classList.remove('ready');
   $('evBind').classList.add('hide');
   $('navLive').classList.add('hide');
   $('navRank').classList.add('hide');
@@ -468,10 +521,13 @@ async function refreshVenues(){
   venuesCache=snap.docs.map(d=>({id:d.id, ...d.data()}))
     .sort((a,b)=>a.name.localeCompare(b.name,'zh-Hant'));
 }
+window.openMore=()=>$('moreDlg').classList.add('show');
+window.closeMore=()=>$('moreDlg').classList.remove('show');
 window.showView = v=>{
   ['signup','live','rank','manage'].forEach(x=>{
     const el=$(x+'View'); if(el) el.classList.toggle('hide', v!==x);
     const nb=$('nav'+x[0].toUpperCase()+x.slice(1)); if(nb) nb.classList.toggle('on', v===x);
+    const bb=$('bNav'+x[0].toUpperCase()+x.slice(1)); if(bb) bb.classList.toggle('on', v===x);
   });
   if(v==='manage') renderManage();
   if(v==='live') renderLive();
@@ -1243,31 +1299,41 @@ function renderLive(){
   const st=liveState, mgr=isMgr();
   let html='';
   if(st.paused) html+='<div class="notice" style="margin-bottom:12px;">⏸ 已暫停自動排場（管理 → ⚙ 系統 可恢復）</div>';
-  html+='<div class="card"><h2>🏸 球場</h2>';
+  if(liveSel){
+    const sv=locGet(liveSel);
+    if(sv) html+=`<div class="notice" style="margin-bottom:12px;">👉 已選取「${esc(mname(sv.id))}」：點另一人互換、點空位移入，或再點他一次取消選取</div>`;
+    else liveSel=null;
+  }
+  html+='<div class="card"><h2>🏸 球場</h2><div id="courtsWrap">';
   for(let i=0;i<st.courtCount;i++){
     const c=st.courts[i], m=c.match;
-    html+=`<div class="divider" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-      <b style="color:var(--txt);${mgr?'cursor:pointer;':''}" ${mgr?`onclick="liveRename(${i})"`:''}>場地 ${esc(c.label)}${mgr?' ✎':''}</b>`;
-    if(!m){ html+=`<span class="sub">${st.paused?'已暫停':'空場（等待一滿員自動遞補）'}</span></div>`; continue; }
+    let cb=`<div class="courtboard"><div class="cb-head">
+      <b style="font-size:18px;color:var(--txt);${mgr?'cursor:pointer;':''}" ${mgr?`onclick="liveRename(${i})"`:''}>場地 ${esc(c.label)}${mgr?' ✎':''}</b>`;
+    if(!m){
+      cb+=`</div><div class="sub" style="text-align:center;padding:26px 0;">${st.paused?'已暫停':'空場（等待一滿員自動遞補）'}</div></div>`;
+      html+=cb; continue;
+    }
     const started=!!m.startedAt;
-    html+= started? `<span class="tag t-main">第 ${m.seq} 場・已進行 ${fmtWait(Date.now()-m.startedAt)}</span></div>`
-                  : `<span class="tag t-promo">準備中</span></div>`;
-    const team=(ids,tn)=>ids.map((id,j)=>{
+    cb+= started? `<span class="tag t-main">第 ${m.seq} 場・${fmtWait(Date.now()-m.startedAt)}</span></div>`
+                : `<span class="tag t-promo">準備中</span></div>`;
+    const team=(ids,tn)=>`<div class="cb-team ${tn==='A'?'a':'b'}">`+ids.map((id,j)=>{
       const attrs=`data-lt="court" data-li="${i}" data-lj="${j}" data-lteam="${tn}"`;
-      if(!id) return `<span class="emptycell" ${attrs} style="border-color:var(--amber);color:var(--amber);" ${mgr?`onclick="liveTap('court',${i},${j},'${tn}')"`:''}>空位(待遞補)</span>`;
+      if(!id) return `<span class="emptycell" ${attrs} style="border-color:var(--amber);color:#fcd34d;" ${mgr?`onclick="liveTap('court',${i},${j},'${tn}')"`:''}>空位(待遞補)</span>`;
       const selfCell=session.me.id===id;
       const seld=sameLoc(liveSel,{t:'court',i,j,team:tn});
       const xbtn=(!started&&(mgr||selfCell))?`<button class="mini red" style="padding:2px 8px;" onclick="event.stopPropagation();courtCancel(${i},'${tn}',${j})">✕</button>`:'';
-      return `<span class="pchip${seld?' selchip':''}" ${attrs} ${mgr?`onclick="liveTap('court',${i},${j},'${tn}')"`:''}>${esc(mname(id))}<small>${melo(id)}</small>${xbtn}</span>`;
-    }).join('');
-    html+=`<div class="row">${team(m.teamA,'A')}<span class="sub"><b>VS</b></span>${team(m.teamB,'B')}</div>`;
+      return `<span class="pchip${seld?' selchip':''}" ${attrs} ${mgr?`onclick="liveTap('court',${i},${j},'${tn}')"`:''}><span>${esc(mname(id))}${xbtn}</span><small>${melo(id)}</small></span>`;
+    }).join('')+`</div>`;
+    cb+=`<div class="cb-teams">${team(m.teamA,'A')}<div class="cb-vs">VS</div>${team(m.teamB,'B')}</div>`;
     if(mgr){
-      html+= started
-        ? `<div class="row"><button class="ok" style="flex:1;font-size:18px;" onclick="liveEnd(${i})">比賽結束</button><button class="mini red" onclick="liveAbort(${i})">取消比賽</button></div>`
-        : `<div class="row"><button class="pri" style="flex:1;font-size:18px;" onclick="liveStart(${i})">▶ 開始比賽</button></div>`;
+      cb+= started
+        ? `<div class="row"><button class="ok" style="flex:1;font-size:19px;padding:14px;" onclick="liveEnd(${i})">比賽結束</button><button class="mini red" onclick="liveAbort(${i})">取消比賽</button></div>`
+        : `<div class="row"><button class="pri" style="flex:1;font-size:19px;padding:14px;" onclick="liveStart(${i})">▶ 開始比賽</button></div>`;
     }
+    cb+='</div>';
+    html+=cb;
   }
-  html+='</div>';
+  html+='</div></div>';
   const zh=['一','二','三','四'];
   html+='<div class="card"><h2>⏳ 等待場次</h2>';
   for(let i=0;i<st.slotCount;i++){
