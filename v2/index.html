@@ -27,12 +27,15 @@
   .cb-head{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:4px;}
   .cb-teams{display:flex; gap:8px; align-items:stretch; margin:8px 0;}
   .cb-vs{align-self:center; font-weight:900; font-size:20px; color:var(--sub);}
-  .cb-team{flex:1; border-radius:12px; padding:10px; display:flex; flex-direction:column; gap:8px;}
-  .cb-team.a{background:#1d4ed8;}
-  .cb-team.b{background:#b45309;}
-  .cb-team .pchip{background:rgba(0,0,0,.30); width:100%; justify-content:space-between;
-    font-size:clamp(20px,2.6vw,30px); font-weight:700; padding:10px 14px;}
-  .cb-team .pchip small{font-size:13px; color:#e2e8f0;}
+  .cb-team{flex:1; border-radius:12px; padding:10px; display:flex; flex-direction:column; gap:8px;
+    background:var(--panel); border:1px solid var(--line);}
+  .cb-team .pchip{background:var(--panel2); width:100%; justify-content:space-between; align-items:center; padding:8px 12px;}
+  .cbp-txt{display:flex; flex-direction:column; line-height:1.2; text-align:left;}
+  .cbp-name{font-size:clamp(20px,2.6vw,30px); font-weight:800; color:var(--txt);}
+  .cbp-elo{font-size:12px; color:var(--sub); font-weight:400;}
+  .cbx{background:var(--panel); border:1px solid var(--line); color:var(--sub); border-radius:10px;
+    min-width:34px; height:34px; font-size:15px; margin-left:10px; padding:0;}
+  .cbx.sm{min-width:26px; height:26px; font-size:12px; border-radius:8px; margin-left:6px;}
   .cb-team .emptycell{width:100%; justify-content:center; padding:14px; font-size:16px;}
   /* 底部功能列（手機） */
   #botbar{display:none; position:fixed; bottom:0; left:0; right:0; background:var(--panel);
@@ -50,7 +53,17 @@
     #navBack{display:block;}
     #botbar.ready{display:flex;}
     main{padding-bottom:96px;}
-    .cb-team .pchip{font-size:22px;}
+    .cbp-name{font-size:22px;}
+  }
+  @media (max-height:500px){
+    header .hbtn{display:none;}
+    #evBind .hbtn{display:block;}
+    #navBack{display:block;}
+    #botbar.ready{display:flex; flex-direction:column; top:0; bottom:0; left:0; right:auto; width:72px;
+      border-top:none; border-right:1px solid var(--line); justify-content:flex-start; padding-top:6px;}
+    #botbar button{flex:0 0 auto; padding:10px 2px;}
+    main{padding-left:86px; padding-bottom:14px;}
+    header{padding-left:86px;}
   }
   .card{background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:14px; margin-bottom:14px;}
   .card h2{margin:0 0 10px; font-size:17px;}
@@ -135,7 +148,7 @@
       box-shadow:0 8px 24px rgba(0,0,0,.5);max-height:60vh;overflow:auto;"></div>
   </div>
   <button class="hbtn" id="navLive" onclick="showView('live')">🏟 現場</button>
-  <button class="hbtn hide" id="navCheckin" onclick="openCheckin()">✅ 簽到</button>
+  <button class="hbtn hide" id="navCheckin" onclick="showView('checkin')">✅ 簽到</button>
   <span id="navDiv" class="hide" style="width:2px;align-self:stretch;margin:6px 4px;background:#475569;border-radius:1px;"></span>
   <button class="hbtn on" id="navSignup" onclick="showView('signup')">📅 報名</button>
   <button class="hbtn" id="navRank" onclick="showView('rank')">📊 排行</button>
@@ -159,6 +172,7 @@
 
 <main id="appView" class="hide">
   <div id="signupView"></div>
+  <div id="checkinView" class="hide"></div>
   <div id="liveView" class="hide"></div>
   <div id="rankView" class="hide"></div>
   <div id="manageView" class="hide"></div>
@@ -167,7 +181,7 @@
 
 <nav id="botbar">
   <button id="bNavLive" onclick="showView('live')"><span class="ic">🏟</span>現場</button>
-  <button onclick="openCheckin()"><span class="ic">✅</span>簽到</button>
+  <button id="bNavCheckin" onclick="showView('checkin')"><span class="ic">✅</span>簽到</button>
   <button id="bNavSignup" onclick="showView('signup')"><span class="ic">📅</span>報名</button>
   <button id="bNavRank" onclick="showView('rank')"><span class="ic">📊</span>排行</button>
   <button id="bNavManage" class="hide" onclick="showView('manage')"><span class="ic">🛠</span>管理</button>
@@ -193,13 +207,6 @@
       <button class="cancel" onclick="closeEvSet()">取消</button>
       <button class="ok" onclick="saveEvSet()">儲存</button>
     </div>
-  </div>
-</div>
-<div class="overlay" id="checkinDlg">
-  <div class="dlgbox" style="width:min(560px,100%);max-height:85vh;overflow:auto;">
-    <div class="msg" style="font-weight:700;">✅ 簽到 — 請點自己名字旁的「簽到」</div>
-    <div id="checkinList"></div>
-    <div class="dlgbtns"><button class="cancel" onclick="closeCheckin()">關閉</button></div>
   </div>
 </div>
 <div class="overlay" id="scoreDlg">
@@ -256,7 +263,7 @@ const firebaseConfig = {
   messagingSenderId: "223475807993",
   appId: "1:223475807993:web:e62e327f9a8ae43e479428"
 };
-const APP_VER='v2.6.0-beta（2026-07-23）';
+const APP_VER='v2.6.1-beta（2026-07-23）';
 document.getElementById('verTag').textContent='版本 '+APP_VER;
 const fbApp = initializeApp(firebaseConfig);
 const db = getFirestore(fbApp);
@@ -523,8 +530,10 @@ async function refreshVenues(){
 }
 window.openMore=()=>$('moreDlg').classList.add('show');
 window.closeMore=()=>$('moreDlg').classList.remove('show');
+let currentView='signup';
 window.showView = v=>{
-  ['signup','live','rank','manage'].forEach(x=>{
+  currentView=v;
+  ['signup','checkin','live','rank','manage'].forEach(x=>{
     const el=$(x+'View'); if(el) el.classList.toggle('hide', v!==x);
     const nb=$('nav'+x[0].toUpperCase()+x.slice(1)); if(nb) nb.classList.toggle('on', v===x);
     const bb=$('bNav'+x[0].toUpperCase()+x.slice(1)); if(bb) bb.classList.toggle('on', v===x);
@@ -532,6 +541,8 @@ window.showView = v=>{
   if(v==='manage') renderManage();
   if(v==='live') renderLive();
   if(v==='rank') renderRank();
+  if(v==='checkin') renderCheckin();
+  if(typeof updateBindSel==='function') updateBindSel();
 };
 
 /* ---------- 打球日監聽 ---------- */
@@ -917,7 +928,7 @@ function watchLive(){
     }
     liveSel=null;
     updateBindSel();
-    if(checkinOpen) renderCheckin();
+    renderCheckin();
     if($('liveView') && !$('liveView').classList.contains('hide')) renderLive();
   }, e=>console.error(e));
 }
@@ -1216,7 +1227,7 @@ function liveEvent(){
 }
 function updateBindSel(){
   const box=$('evBind'); if(!box) return;
-  if(!session || !session.teamId){ box.classList.add('hide'); return; }
+  if(!session || !session.teamId || currentView==='signup'){ box.classList.add('hide'); return; }
   const evs=Object.values(eventCache).sort((a,b)=>a.dateStr.localeCompare(b.dateStr));
   if(!evs.length){ box.classList.add('hide'); return; }
   const bev=liveEvent();
@@ -1239,7 +1250,6 @@ window.liveBind = evId=>{
   if(!evId || boundEventId===evId) return;
   boundEventId=evId;
   watchLive();                                   // 載入該打球日自己的現場資料
-  if(checkinOpen) renderCheckin();
 };
 let evSet=null;
 window.openEvSet = evId=>{
@@ -1321,8 +1331,8 @@ function renderLive(){
       if(!id) return `<span class="emptycell" ${attrs} style="border-color:var(--amber);color:#fcd34d;" ${mgr?`onclick="liveTap('court',${i},${j},'${tn}')"`:''}>空位(待遞補)</span>`;
       const selfCell=session.me.id===id;
       const seld=sameLoc(liveSel,{t:'court',i,j,team:tn});
-      const xbtn=(!started&&(mgr||selfCell))?`<button class="mini red" style="padding:2px 8px;" onclick="event.stopPropagation();courtCancel(${i},'${tn}',${j})">✕</button>`:'';
-      return `<span class="pchip${seld?' selchip':''}" ${attrs} ${mgr?`onclick="liveTap('court',${i},${j},'${tn}')"`:''}><span>${esc(mname(id))}${xbtn}</span><small>${melo(id)}</small></span>`;
+      const xbtn=(!started&&(mgr||selfCell))?`<button class="cbx" onclick="event.stopPropagation();courtCancel(${i},'${tn}',${j})">✕</button>`:'';
+      return `<span class="pchip${seld?' selchip':''}" ${attrs} ${mgr?`onclick="liveTap('court',${i},${j},'${tn}')"`:''}><span class="cbp-txt"><span class="cbp-name">${esc(mname(id))}</span><span class="cbp-elo">${melo(id)}</span></span>${xbtn}</span>`;
     }).join('')+`</div>`;
     cb+=`<div class="cb-teams">${team(m.teamA,'A')}<div class="cb-vs">VS</div>${team(m.teamB,'B')}</div>`;
     if(mgr){
@@ -1347,7 +1357,7 @@ function renderLive(){
       }
       const selfCell=session.me.id===v.id;
       const seld=sameLoc(liveSel,{t:'slot',i,j,team:''});
-      const xbtn=(mgr||selfCell)?`<button class="mini red" style="padding:2px 8px;" onclick="event.stopPropagation();slotCancel(${i},${j})">✕</button>`:'';
+      const xbtn=(mgr||selfCell)?`<button class="cbx sm" onclick="event.stopPropagation();slotCancel(${i},${j})">✕</button>`:'';
       return `<span class="pchip${seld?' selchip':''}" ${attrs} ${mgr?`onclick="liveTap('slot',${i},${j},'')"`:''}>${esc(mname(v.id))}<small>${melo(v.id)}</small>${xbtn}</span>`;
     };
     const holed=s.p.some((x,j)=>!x && s.lock && s.lock[j]);
@@ -1381,12 +1391,11 @@ function renderLive(){
     </div>`;
   }
   box.innerHTML=html;
-  if(checkinOpen) renderCheckin();
 }
-window.openCheckin=()=>{ checkinOpen=true; renderCheckin(); $('checkinDlg').classList.add('show'); };
-window.closeCheckin=()=>{ checkinOpen=false; $('checkinDlg').classList.remove('show'); };
+window.openCheckin=()=>showView('checkin');
 function renderCheckin(){
-  const el=$('checkinList'); if(!el || !liveState) return;
+  const el=$('checkinView'); if(!el) return;
+  if(!liveState){ el.innerHTML='<div class="card"><div class="sub">載入中…（或尚未綁定打球日）</div></div>'; return; }
   const occ=occupiedIds();
   const mgr=isMgr();
   const ev=liveEvent();
@@ -1403,7 +1412,10 @@ function renderCheckin(){
       ${canDo?`<button class="ok" style="padding:8px 22px;" onclick="liveCheckIn('${s.memberId}')">簽到</button>`:''}
     </div>`;
   }).join('');
-  el.innerHTML=rows||'<div class="sub">此打球日尚無正取名單（或現場未綁定打球日）</div>';
+  const ttl=ev?`${fmtDate(ev.dateStr)} ${ev.startStr||''}${ev.endStr?'–'+ev.endStr:''}${ev.venueName?' 📍'+esc(ev.venueName):''}`:'';
+  el.innerHTML=`<div class="card"><h2>✅ 簽到 <span class="sub">${ttl}</span></h2>
+    <div class="sub" style="margin-bottom:8px;">請點自己名字旁的「簽到」</div>
+    ${rows||'<div class="sub">此打球日尚無正取名單（或現場未綁定打球日）</div>'}</div>`;
 }
 setInterval(()=>{ if(session && liveState && $('liveView') && !$('liveView').classList.contains('hide')) renderLive(); }, 30000);
 setInterval(()=>{ if(session && session.teamId && watchDay && watchDay!==todayStr()) watchEvents(); }, 60000);  // 跨夜自動更新報名清單
