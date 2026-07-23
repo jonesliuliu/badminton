@@ -125,7 +125,8 @@
   .pchip.selchip{outline:2px solid var(--teal); background:#134e4a;}
   .emptycell{display:inline-flex; border:1.5px dashed var(--line); color:var(--sub); padding:8px 14px;
     border-radius:14px; cursor:pointer; font-size:14px; user-select:none;}
-  .pchip{touch-action:pan-y; -webkit-touch-callout:none;}
+  .pchip,.emptycell{touch-action:pan-y; -webkit-touch-callout:none;
+    -webkit-user-select:none; -moz-user-select:none; user-select:none;}
   .dragghost{position:fixed; z-index:99; background:var(--teal); color:#fff; padding:10px 18px;
     border-radius:20px; font-size:17px; font-weight:700; pointer-events:none; box-shadow:0 4px 16px rgba(0,0,0,.5);}
   body.dragging{user-select:none; -webkit-user-select:none;}
@@ -269,7 +270,7 @@ const firebaseConfig = {
   messagingSenderId: "223475807993",
   appId: "1:223475807993:web:e62e327f9a8ae43e479428"
 };
-const APP_VER='v2.7.0（2026-07-23）';
+const APP_VER='v2.7.1（2026-07-23）';
 document.getElementById('verTag').textContent='版本 '+APP_VER;
 const fbApp = initializeApp(firebaseConfig);
 const db = getFirestore(fbApp);
@@ -1122,6 +1123,9 @@ document.addEventListener('pointerup', e=>{
 document.addEventListener('pointercancel', ()=>{
   if(ldrag){ clearTimeout(ldrag.timer); if(ldrag.ghost) ldrag.ghost.remove(); document.body.classList.remove('dragging'); ldrag=null; }
 });
+// Android：長按球員名字時抑制系統右鍵/下載分享選單與文字選取
+document.addEventListener('contextmenu', e=>{ if(e.target.closest('[data-lt]')) e.preventDefault(); });
+document.addEventListener('selectstart', e=>{ if(e.target.closest('[data-lt]')) e.preventDefault(); });
 window.liveTap = (t,i,j,team)=>{
   if(dragDone) return;
   if(!isMgr()) return;
