@@ -88,7 +88,7 @@
   <h1>🏸 <span id="teamName"></span></h1>
   <span class="sub" id="whoami"></span>
   <div class="spacer"></div>
-  <select id="evBindSel" class="hide" style="max-width:200px;" onchange="liveBind(this.value)"></select>
+  <select id="evBindSel" class="hide" style="max-width:300px;" onchange="liveBind(this.value)"></select>
   <button class="hbtn hide" id="navBack" onclick="backToAdmin()">⬅ 總覽</button>
   <button class="hbtn on" id="navSignup" onclick="showView('signup')">📅 報名</button>
   <button class="hbtn hide" id="navCheckin" onclick="openCheckin()">✅ 簽到</button>
@@ -192,7 +192,7 @@ const firebaseConfig = {
   messagingSenderId: "223475807993",
   appId: "1:223475807993:web:e62e327f9a8ae43e479428"
 };
-const APP_VER='v2.3.5（2026-07-23）';
+const APP_VER='v2.3.6（2026-07-23）';
 document.getElementById('verTag').textContent='版本 '+APP_VER;
 const fbApp = initializeApp(firebaseConfig);
 const db = getFirestore(fbApp);
@@ -1000,7 +1000,7 @@ function updateBindSel(){
   if(!evs.length){ sel.classList.add('hide'); return; }
   const bev=liveEvent();
   sel.innerHTML=(bev?'':'<option value="" selected>選擇打球日</option>')
-    +evs.map(e=>`<option value="${e.id}" ${bev&&bev.id===e.id?'selected':''}>${fmtDate(e.dateStr)} ${esc(e.startStr||'')}</option>`).join('');
+    +evs.map(e=>`<option value="${e.id}" ${bev&&bev.id===e.id?'selected':''}>${fmtDate(e.dateStr)} ${esc(e.startStr||'')}${e.endStr?'~'+esc(e.endStr):''}${e.venueName?' '+esc(e.venueName):''}</option>`).join('');
   sel.classList.remove('hide');
 }
 window.liveBind = evId=>{
