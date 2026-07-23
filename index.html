@@ -344,6 +344,7 @@
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getAuth, signInAnonymously, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import { initializeAppCheck, ReCaptchaV3Provider } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app-check.js';
 import { getFirestore, collection, doc, addDoc, setDoc, getDoc, getDocs, deleteDoc, updateDoc,
          onSnapshot, query, orderBy, where, serverTimestamp, arrayUnion } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
@@ -355,12 +356,17 @@ const firebaseConfig = {
   messagingSenderId: "223475807993",
   appId: "1:223475807993:web:e62e327f9a8ae43e479428"
 };
-const APP_VER='v2.8.7（2026-07-23）';
+const APP_VER='v2.8.8（2026-07-23）';
 try{ history.scrollRestoration='manual'; }catch(e){}
 function fitHeader(){}
 function resetScroll(){ const m=document.getElementById('appView'); if(m) m.scrollTop=0; window.scrollTo(0,0); }
 document.getElementById('verTag').textContent='版本 '+APP_VER;
 const fbApp = initializeApp(firebaseConfig);
+// App Check：僅接受來自本網站的資料庫請求
+initializeAppCheck(fbApp, {
+  provider: new ReCaptchaV3Provider('6LcQMGEtAAAAAMvVw0rrOEO5ejas4y74gcLz8hYv'),
+  isTokenAutoRefreshEnabled: true
+});
 const db = getFirestore(fbApp);
 const auth = getAuth(fbApp);
 
