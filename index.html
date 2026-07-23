@@ -206,7 +206,7 @@ const firebaseConfig = {
   messagingSenderId: "223475807993",
   appId: "1:223475807993:web:e62e327f9a8ae43e479428"
 };
-const APP_VER='v2.5.4（2026-07-23）';
+const APP_VER='v2.5.5（2026-07-23）';
 document.getElementById('verTag').textContent='版本 '+APP_VER;
 const fbApp = initializeApp(firebaseConfig);
 const db = getFirestore(fbApp);
@@ -872,7 +872,7 @@ function occupiedIds(){
   liveState.pool.forEach(p=>ids.add(p.id));
   liveState.resting.forEach(id=>ids.add(id));
   liveState.slots.forEach(s=>s.p.forEach(x=>{ if(x) ids.add(x.id); }));
-  liveState.courts.forEach(c=>{ if(c.match) [...c.match.teamA,...c.match.teamB].forEach(id=>ids.add(id)); });
+  liveState.courts.forEach(c=>{ if(c.match) [...c.match.teamA,...c.match.teamB].forEach(id=>{ if(id) ids.add(id); }); });
   return ids;
 }
 /* ---- 配對演算法：等最久 4 人 → 兩隊積分最接近；同組合避免重複搭檔 ---- */
@@ -907,7 +907,8 @@ function fillAndAdvance(){
       const s0=st.slots[0];
       if(!s0 || s0.p.some(x=>!x)) break;        // 等待一缺人 → 不遞補上場
       const split=bestSplit(s0.p);              // 上場那一刻做平衡分隊
-      c.match={teamA:[split.A[0].id,split.A[1].id], teamB:[split.B[0].id,split.B[1].id], startedAt:null, seq:null};
+      const sinces={}; s0.p.forEach(x=>{ sinces[x.id]=x.since; });
+      c.match={teamA:[split.A[0].id,split.A[1].id], teamB:[split.B[0].id,split.B[1].id], startedAt:null, seq:null, sinces};
       st.slots.shift(); st.slots.push({p:[null,null,null,null],lock:[false,false,false,false]});
       fillSlots();
     }
@@ -951,6 +952,18 @@ window.slotCancel = async (i,j)=>{
   liveState.slots[i].p[j]=null;
   liveState.slots[i].lock[j]=true;
   liveState.pool.push(cell);
+  liveState.pool.sort((a,b)=>a.since-b.since);
+  saveLive();
+};
+/* ---- 場上（準備中）臨時取消：空位鎖定待遞補 ---- */
+window.courtCancel = async (ci,tn,j)=>{
+  const m=liveState.courts[ci].match; if(!m || m.startedAt) return;
+  const arr=tn==='A'?m.teamA:m.teamB;
+  const id=arr[j]; if(!id) return;
+  if(!isMgr() && session.me.id!==id) return;
+  if(!await askConfirm(`「${mname(id)}」取消此場回到排隊區？（空位保留，由拖曳手動遞補）`)) return;
+  arr[j]=null;
+  liveState.pool.push({id, since:(m.sinces&&m.sinces[id])||Date.now()});
   liveState.pool.sort((a,b)=>a.since-b.since);
   saveLive();
 };
@@ -1027,7 +1040,9 @@ function locGet(l){
   if(l.t==='pool') return liveState.pool[l.i]||null;
   if(l.t==='slot') return liveState.slots[l.i].p[l.j];
   if(l.t==='court'){ const m=liveState.courts[l.i].match; if(!m) return null;
-    return {id:(l.team==='A'?m.teamA:m.teamB)[l.j], since:Date.now()}; }
+    const id=(l.team==='A'?m.teamA:m.teamB)[l.j];
+    if(!id) return null;
+    return {id, since:(m.sinces&&m.sinces[id])||Date.now()}; }
   return null;
 }
 function locSet(l,v){
@@ -1038,11 +1053,14 @@ function locSet(l,v){
     liveState.slots[l.i].p[l.j]=v;
     liveState.slots[l.i].lock[l.j]=v?false:true;   // 手動移入解除鎖定；手動移出視為保留空位
   }
-  else if(l.t==='court'){ const m=liveState.courts[l.i].match; (l.team==='A'?m.teamA:m.teamB)[l.j]=v.id; }
+  else if(l.t==='court'){ const m=liveState.courts[l.i].match;
+    (l.team==='A'?m.teamA:m.teamB)[l.j]=v?v.id:null;
+    if(v){ if(!m.sinces) m.sinces={}; m.sinces[v.id]=v.since; } }
 }
 function doSwap(a,b){
   const va=locGet(a), vb=locGet(b);
-  if((a.t==='court'&&!vb)||(b.t==='court'&&!va)){ toast('場上位置不能留空'); return; }
+  const courtStarted=l=>l.t==='court' && liveState.courts[l.i].match && liveState.courts[l.i].match.startedAt;
+  if((courtStarted(a)&&!vb)||(courtStarted(b)&&!va)){ toast('比賽進行中的位置不能留空'); return; }
   if(!va&&!vb) return;
   locSet(b,va); locSet(a,vb);
   liveState.pool.sort((x,y)=>x.since-y.since);
@@ -1053,6 +1071,7 @@ window.liveStart = ci=>{
   if(!isMgr()) return;
   const m=liveState.courts[ci].match;
   if(!m || m.startedAt) return;
+  if(m.teamA.some(x=>!x)||m.teamB.some(x=>!x)){ toast('場上有空位，請先拖曳遞補'); return; }
   m.startedAt=Date.now();
   liveState.daySeq=(liveState.daySeq||0)+1;
   m.seq=liveState.daySeq;
@@ -1064,7 +1083,7 @@ window.liveAbort = async ci=>{
   if(!isMgr()) return;
   const m=liveState.courts[ci].match; if(!m) return;
   if(!await askConfirm(`取消場地 ${liveState.courts[ci].label} 的${m.startedAt?'比賽':'預排'}？此場不計分`)) return;
-  [...m.teamA,...m.teamB].forEach(id=>liveState.pool.push({id,since:Date.now()}));
+  [...m.teamA,...m.teamB].forEach(id=>{ if(id) liveState.pool.push({id,since:(m.sinces&&m.sinces[id])||Date.now()}); });
   if(m.seq && m.seq===liveState.daySeq) liveState.daySeq--;
   liveState.courts[ci].match=null;
   fillAndAdvance(); saveLive();
@@ -1124,7 +1143,7 @@ window.sdBump=(k,d)=>{ sd[k]=Math.min(30,Math.max(0,sd[k]+d)); $('sd'+k.toUpperC
 /* ---- 現場設定 ---- */
 function applyCounts(cc,sc){
   for(let i=cc;i<4;i++){ const m=liveState.courts[i].match;
-    if(m){ [...m.teamA,...m.teamB].forEach(id=>liveState.pool.push({id,since:Date.now()})); liveState.courts[i].match=null; } }
+    if(m){ [...m.teamA,...m.teamB].forEach(id=>{ if(id) liveState.pool.push({id,since:Date.now()}); }); liveState.courts[i].match=null; } }
   liveState.courtCount=cc;
   for(let i=sc;i<4;i++){ const s=liveState.slots[i];
     s.p.forEach(x=>{ if(x) liveState.pool.push(x); }); s.p=[null,null,null,null]; s.lock=[false,false,false,false]; }
@@ -1192,7 +1211,7 @@ window.saveEvSet=async ()=>{
 };
 window.liveCourtCount = n=>{ if(!isMgr()) return;
   for(let i=n;i<4;i++){ const m=liveState.courts[i].match;
-    if(m){ [...m.teamA,...m.teamB].forEach(id=>liveState.pool.push({id,since:Date.now()})); liveState.courts[i].match=null; } }
+    if(m){ [...m.teamA,...m.teamB].forEach(id=>{ if(id) liveState.pool.push({id,since:Date.now()}); }); liveState.courts[i].match=null; } }
   liveState.courtCount=n; fillAndAdvance(); saveLive(); };
 window.liveSlotCount = n=>{ if(!isMgr()) return;
   for(let i=n;i<4;i++){ const s=liveState.slots[i];
@@ -1232,8 +1251,12 @@ function renderLive(){
     html+= started? `<span class="tag t-main">第 ${m.seq} 場・已進行 ${fmtWait(Date.now()-m.startedAt)}</span></div>`
                   : `<span class="tag t-promo">準備中</span></div>`;
     const team=(ids,tn)=>ids.map((id,j)=>{
+      const attrs=`data-lt="court" data-li="${i}" data-lj="${j}" data-lteam="${tn}"`;
+      if(!id) return `<span class="emptycell" ${attrs} style="border-color:var(--amber);color:var(--amber);" ${mgr?`onclick="liveTap('court',${i},${j},'${tn}')"`:''}>空位(待遞補)</span>`;
+      const selfCell=session.me.id===id;
       const seld=sameLoc(liveSel,{t:'court',i,j,team:tn});
-      return `<span class="pchip${seld?' selchip':''}" data-lt="court" data-li="${i}" data-lj="${j}" data-lteam="${tn}" ${mgr?`onclick="liveTap('court',${i},${j},'${tn}')"`:''}>${esc(mname(id))}<small>${melo(id)}</small></span>`;
+      const xbtn=(!started&&(mgr||selfCell))?`<button class="mini red" style="padding:2px 8px;" onclick="event.stopPropagation();courtCancel(${i},'${tn}',${j})">✕</button>`:'';
+      return `<span class="pchip${seld?' selchip':''}" ${attrs} ${mgr?`onclick="liveTap('court',${i},${j},'${tn}')"`:''}>${esc(mname(id))}<small>${melo(id)}</small>${xbtn}</span>`;
     }).join('');
     html+=`<div class="row">${team(m.teamA,'A')}<span class="sub"><b>VS</b></span>${team(m.teamB,'B')}</div>`;
     if(mgr){
