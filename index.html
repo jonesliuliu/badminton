@@ -201,7 +201,7 @@ const firebaseConfig = {
   messagingSenderId: "223475807993",
   appId: "1:223475807993:web:e62e327f9a8ae43e479428"
 };
-const APP_VER='v2.4.5（2026-07-23）';
+const APP_VER='v2.4.6（2026-07-23）';
 document.getElementById('verTag').textContent='版本 '+APP_VER;
 const fbApp = initializeApp(firebaseConfig);
 const db = getFirestore(fbApp);
@@ -1080,12 +1080,26 @@ document.addEventListener('click', e=>{
   const m=$('evBindMenu');
   if(m && !m.classList.contains('hide') && !e.target.closest('#evBind')) m.classList.add('hide');
 });
-window.liveBind = evId=>{
+window.liveBind = async evId=>{
   if(!evId || !liveState) return;
   if(isMgr()){
-    liveState.eventId=evId;
+    const cur=liveEvent();
+    if(cur && cur.id===evId){                       // 與目前綁定相同 → 僅記錄，不動名單
+      if(liveState.eventId!==evId){ liveState.eventId=evId; liveState.evApplied=evId; saveLive(); }
+      return;
+    }
+    const hasPeople=liveState.pool.length || liveState.resting.length
+      || liveState.slots.some(s=>s.p.some(x=>x))
+      || liveState.courts.some(c=>c.match);
+    if(hasPeople && !await askConfirm('切換打球日？現場名單（簽到／排隊／場上）將全部清空，重新開始')){
+      updateBindSel(); return;
+    }
+    const keep=liveState.courts.map(c=>c.label);
     const ev=eventCache[evId];
-    if(ev){ liveState.evApplied=evId; applyCounts(ev.courtCount||2, ev.slotCount||2); }
+    liveState=defaultLive();
+    liveState.courts.forEach((c,i)=>c.label=keep[i]);
+    liveState.eventId=evId; liveState.evApplied=evId;
+    if(ev){ liveState.courtCount=ev.courtCount||2; liveState.slotCount=ev.slotCount||2; }
     saveLive();
   }else{
     localEventId=evId;
