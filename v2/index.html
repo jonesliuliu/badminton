@@ -75,8 +75,10 @@
   <h1>🏸 <span id="teamName"></span></h1>
   <span class="sub" id="whoami"></span>
   <div class="spacer"></div>
+  <button class="hbtn hide" id="navBack" onclick="backToAdmin()">⬅ 總覽</button>
   <button class="hbtn on" id="navSignup" onclick="showView('signup')">📅 報名</button>
   <button class="hbtn hide" id="navManage" onclick="showView('manage')">🛠 管理</button>
+  <button class="hbtn" id="btnPw" onclick="changeMyPw()">🔑 改密碼</button>
   <button class="hbtn" onclick="logout()">登出</button>
 </header>
 
@@ -88,12 +90,14 @@
     <div class="field"><label>你的名字</label><input id="loginName" placeholder="輸入姓名（需與登記相同）" autocomplete="off"></div>
     <div class="field"><label>密碼</label><input type="password" id="loginPw" placeholder="輸入密碼"></div>
     <button class="ok full" onclick="doLogin()">登入</button>
+    <div class="sub" style="text-align:center;margin-top:12px;">忘記密碼？請洽你的球隊管理者重設</div>
   </div>
 </div>
 
 <main id="appView" class="hide">
   <div id="signupView"></div>
   <div id="manageView" class="hide"></div>
+  <div id="adminView" class="hide"></div>
 </main>
 
 <div id="toast"></div>
@@ -163,6 +167,7 @@ onAuthStateChanged(auth, async user=>{
   try{ await loadTeams(); }
   catch(e){ $('errbar').classList.add('show'); return; }
   const saved = JSON.parse(localStorage.getItem('bm2_session')||'null');
+  if(saved && saved.admin && !saved.teamId){ session=saved; enterAdmin(); return; }
   if(saved && teams.some(t=>t.id===saved.teamId)){
     const mDoc = await getDoc(doc(db,'teams',saved.teamId,'members',saved.me.id));
     if(mDoc.exists()){
@@ -182,13 +187,32 @@ function renderLogin(){
   $('loginView').classList.remove('hide');
   $('topbar').classList.add('hide');
   $('appView').classList.add('hide');
-  $('loginTeam').innerHTML = teams.length
-    ? teams.map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join('')
-    : '<option value="">（尚無球隊）</option>';
+  $('loginTeam').innerHTML =
+    teams.map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join('')
+    + '<option value="__admin__">⚙ 系統管理</option>';
 }
+['loginName','loginPw'].forEach(id=>$(id).addEventListener('keydown',e=>{ if(e.key==='Enter') window.doLogin(); }));
 window.doLogin = async ()=>{
   const tid=$('loginTeam').value, name=$('loginName').value.trim(), pw=$('loginPw').value;
   if(!tid||!name||!pw){ toast('請填寫完整'); return; }
+  if(tid==='__admin__'){
+    try{
+      const snap=await getDocs(collection(db,'admins'));
+      if(snap.empty){
+        if(!confirm(`尚未設定系統管理者。\n要以「${name}」與此密碼建立系統管理者帳號嗎？`)) return;
+        await addDoc(collection(db,'admins'),{name, hash:hash(pw), createdAt:serverTimestamp()});
+        toast('系統管理者已建立');
+      }else{
+        const ad=snap.docs.find(d=>d.data().name===name && d.data().hash===hash(pw));
+        if(!ad){ toast('名字或密碼錯誤'); return; }
+      }
+      session={admin:true, me:{id:'__admin__', name, role:'admin'}};
+      localStorage.setItem('bm2_session', JSON.stringify(session));
+      $('loginPw').value=''; $('loginName').value='';
+      enterAdmin();
+    }catch(e){ toast('❌ 登入失敗：'+e.message); }
+    return;
+  }
   try{
     const snap=await getDocs(query(collection(db,'teams',tid,'members'), where('name','==',name)));
     if(snap.empty || snap.docs[0].data().hash!==hash(pw)){ toast('名字或密碼錯誤'); return; }
@@ -210,14 +234,98 @@ async function enterApp(){
   $('loginView').classList.add('hide');
   $('topbar').classList.remove('hide');
   $('appView').classList.remove('hide');
+  $('adminView').classList.add('hide');
   $('teamName').textContent=session.teamName;
   $('whoami').textContent=`${session.me.name}${session.me.role==='manager'?'（管理者）':''}`;
   $('navManage').classList.toggle('hide', session.me.role!=='manager');
+  $('navSignup').classList.remove('hide');
+  $('navBack').classList.toggle('hide', !session.admin);
+  $('btnPw').classList.toggle('hide', session.me.id==='__admin__');
   await refreshMembers();
   await refreshVenues();
   watchEvents();
   showView('signup');
 }
+/* ---------- 系統管理（總管理者） ---------- */
+async function enterAdmin(){
+  $('loginView').classList.add('hide');
+  $('topbar').classList.remove('hide');
+  $('appView').classList.remove('hide');
+  $('teamName').textContent='系統管理';
+  $('whoami').textContent=session.me.name+'（總管理者）';
+  $('navSignup').classList.add('hide');
+  $('navManage').classList.add('hide');
+  $('navBack').classList.add('hide');
+  $('btnPw').classList.add('hide');
+  $('signupView').classList.add('hide');
+  $('manageView').classList.add('hide');
+  $('adminView').classList.remove('hide');
+  renderAdmin();
+}
+async function renderAdmin(){
+  $('adminView').innerHTML='<div class="card"><div class="sub">載入中…</div></div>';
+  await loadTeams();
+  const rows=[];
+  for(const t of teams){
+    const ms=await getDocs(collection(db,'teams',t.id,'members'));
+    const evs=await getDocs(query(collection(db,'teams',t.id,'events'), where('dateStr','>=',todayStr())));
+    const mgrs=ms.docs.filter(d=>d.data().role==='manager').map(d=>d.data().name);
+    rows.push({id:t.id, name:t.name, count:ms.size, mgrs, evs:evs.size});
+  }
+  $('adminView').innerHTML=`
+  <div class="card"><h2>球隊總覽</h2>
+    ${rows.map(r=>`<div class="item">
+      <span class="nm"><b>${esc(r.name)}</b><br>
+        <span class="sub">成員 ${r.count} 人｜管理者：${esc(r.mgrs.join('、')||'—')}｜近期打球日 ${r.evs} 場</span></span>
+      <button class="mini act" onclick="adminEnterTeam('${r.id}')">進入</button>
+      <button class="mini red" onclick="adminDelTeam('${r.id}','${esc(r.name)}')">刪除</button>
+    </div>`).join('')||'<div class="sub">尚無球隊</div>'}
+  </div>
+  <div class="card"><h2>建立新球隊</h2>
+    <div class="field"><label>球隊名稱</label><input id="ctName" placeholder="例：週三羽球團"></div>
+    <div class="field"><label>球隊管理者姓名</label><input id="ctMgr"></div>
+    <div class="field"><label>球隊管理者密碼</label><input type="password" id="ctPw"></div>
+    <button class="pri" onclick="createTeam()">建立球隊</button>
+  </div>`;
+}
+window.adminEnterTeam = async tid=>{
+  session={teamId:tid, teamName:teams.find(t=>t.id===tid).name, admin:true,
+           me:{id:'__admin__', name:session.me.name, role:'manager'}};
+  await enterApp();
+};
+window.backToAdmin = ()=>{
+  if(unsubEvents){ unsubEvents(); unsubEvents=null; }
+  Object.keys(signupUnsubs).forEach(id=>{ signupUnsubs[id](); delete signupUnsubs[id]; delete signupCache[id]; delete eventCache[id]; });
+  session={admin:true, me:{id:'__admin__', name:session.me.name, role:'admin'}};
+  enterAdmin();
+};
+window.adminDelTeam = async (tid,name)=>{
+  if(!confirm(`刪除球隊「${name}」？所有成員、積分、打球日將全部刪除`)) return;
+  if(!confirm('再次確認：此動作無法復原！')) return;
+  await safeWrite(async ()=>{
+    for(const colName of ['members','venues','events']){
+      const s=await getDocs(collection(db,'teams',tid,colName));
+      for(const d of s.docs){
+        if(colName==='events'){
+          const su=await getDocs(collection(db,'teams',tid,'events',d.id,'signups'));
+          for(const x of su.docs) await deleteDoc(x.ref);
+        }
+        await deleteDoc(d.ref);
+      }
+    }
+    await deleteDoc(doc(db,'teams',tid));
+  }, '球隊已刪除');
+  renderAdmin();
+};
+/* ---------- 變更自己的密碼 ---------- */
+window.changeMyPw = async ()=>{
+  if(session.me.id==='__admin__') return;
+  const cur=prompt('輸入目前密碼：'); if(cur===null) return;
+  const mDoc=await getDoc(doc(membersCol(), session.me.id));
+  if(!mDoc.exists() || mDoc.data().hash!==hash(cur)){ toast('目前密碼錯誤'); return; }
+  const nw=prompt('輸入新密碼：'); if(!nw) return;
+  await safeWrite(()=>updateDoc(doc(membersCol(), session.me.id), {hash:hash(nw)}), '密碼已變更');
+};
 async function refreshMembers(){
   const snap=await getDocs(membersCol());
   membersCache=snap.docs.map(d=>({id:d.id, ...d.data()}))
@@ -326,7 +434,10 @@ async function addSignup(evId, member){
     at:serverTimestamp(), initialStatus, confirmed:false
   }), initialStatus==='wait'?`${member.name} 已列入候補`:`${member.name} 報名成功`);
 }
-window.signupSelf = evId => addSignup(evId, {id:session.me.id, name:session.me.name});
+window.signupSelf = evId => {
+  if(session.me.id==='__admin__'){ toast('總管理者請使用「代報名」'); return; }
+  addSignup(evId, {id:session.me.id, name:session.me.name});
+};
 window.proxySignup = async evId=>{
   const mid=$('proxy_'+evId).value;
   const m=membersCache.find(x=>x.id===mid);
@@ -348,7 +459,6 @@ async function renderManage(){
     <button class="${manageTab==='events'?'on':''}" onclick="setManageTab('events')">📅 打球日</button>
     <button class="${manageTab==='members'?'on':''}" onclick="setManageTab('members')">👥 成員</button>
     <button class="${manageTab==='venues'?'on':''}" onclick="setManageTab('venues')">🏟 球館</button>
-    <button class="${manageTab==='teams'?'on':''}" onclick="setManageTab('teams')">🏸 球隊</button>
   </div>`;
   let body='';
   if(manageTab==='events'){
@@ -426,17 +536,6 @@ async function renderManage(){
         </div>`).join('')||'<div class="sub">尚無球館，新增後建立打球日時即可選擇</div>'}
     </div>`;
   }
-  if(manageTab==='teams'){
-    body=`
-    <div class="card">
-      <h2>建立新球隊</h2>
-      <div class="sub" style="margin-bottom:8px;">新球隊與現有球隊資料完全獨立。建立後請用新球隊的管理者帳號登入。</div>
-      <div class="field"><label>球隊名稱</label><input id="ctName" placeholder="例：週三羽球團"></div>
-      <div class="field"><label>管理者姓名</label><input id="ctMgr"></div>
-      <div class="field"><label>管理者密碼</label><input type="password" id="ctPw"></div>
-      <button class="pri" onclick="createTeam()">建立球隊</button>
-    </div>`;
-  }
   box.innerHTML=tabs+body;
 }
 window.createEvent = async ()=>{
@@ -504,7 +603,7 @@ window.createTeam = async ()=>{
     await addDoc(collection(db,'teams',tRef.id,'members'),
       {name:mgr, hash:hash(pw), role:'manager', elo:1500, wins:0, losses:0, matches:0, createdAt:serverTimestamp()});
   }, `球隊「${name}」建立完成`);
-  if(ok){ $('ctName').value=''; $('ctMgr').value=''; $('ctPw').value=''; }
+  if(ok) renderAdmin();
 };
 </script>
 </body>
