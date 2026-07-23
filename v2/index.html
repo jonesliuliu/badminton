@@ -200,7 +200,7 @@ const firebaseConfig = {
   messagingSenderId: "223475807993",
   appId: "1:223475807993:web:e62e327f9a8ae43e479428"
 };
-const APP_VER='v2.3.7（2026-07-23）';
+const APP_VER='v2.4.0（2026-07-23）';
 document.getElementById('verTag').textContent='版本 '+APP_VER;
 const fbApp = initializeApp(firebaseConfig);
 const db = getFirestore(fbApp);
@@ -471,7 +471,9 @@ window.showView = v=>{
 };
 
 /* ---------- 打球日監聽 ---------- */
+let watchDay=null;
 function watchEvents(){
+  watchDay=todayStr();
   if(unsubEvents) unsubEvents();
   const q=query(eventsCol(), where('dateStr','>=',todayStr()), orderBy('dateStr'));
   unsubEvents=onSnapshot(q, snap=>{
@@ -586,6 +588,7 @@ async function renderManage(){
     <button class="${manageTab==='events'?'on':''}" onclick="setManageTab('events')">📅 打球日</button>
     <button class="${manageTab==='members'?'on':''}" onclick="setManageTab('members')">👥 成員</button>
     <button class="${manageTab==='venues'?'on':''}" onclick="setManageTab('venues')">🏟 球館</button>
+    <button class="${manageTab==='hist'?'on':''}" onclick="setManageTab('hist')">🕘 歷史</button>
     <button class="${manageTab==='sys'?'on':''}" onclick="setManageTab('sys')">⚙ 系統</button>
   </div>`;
   let body='';
@@ -671,6 +674,10 @@ async function renderManage(){
         </div>`).join('')||'<div class="sub">尚無球館，新增後建立打球日時即可選擇</div>'}
     </div>`;
   }
+  if(manageTab==='hist'){
+    body=`<div class="card"><h2>歷史報名查詢（近 3 個月）</h2><div id="histBox" class="sub">載入中…</div></div>`;
+    setTimeout(loadHist,50);
+  }
   if(manageTab==='sys'){
     body=`<div class="card"><h2>系統設定</h2>
       <div class="item"><span class="nm">自動排場（比賽結束後自動安排下一場）</span>
@@ -682,6 +689,38 @@ async function renderManage(){
   }
   box.innerHTML=tabs+body;
 }
+let histCache={};
+async function loadHist(){
+  const el=$('histBox'); if(!el) return;
+  const d=new Date(); d.setDate(d.getDate()-90);
+  const cutoff=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  try{
+    const snap=await getDocs(query(eventsCol(), where('dateStr','<',todayStr()), where('dateStr','>=',cutoff), orderBy('dateStr','desc')));
+    histCache={};
+    el.innerHTML=snap.docs.map(dd=>{
+      const e=dd.data(); histCache[dd.id]=e;
+      return `<div class="item"><span class="nm"><b style="color:var(--txt);">${fmtDate(e.dateStr)}</b> ${esc(e.startStr||'')}${e.endStr?'–'+esc(e.endStr):''} ${e.venueName?'📍'+esc(e.venueName):''}</span>
+        <button class="mini act" onclick="histShow('${dd.id}')">查看名單</button></div>
+        <div id="hist_${dd.id}" class="hide" style="padding:4px 0 10px 24px;"></div>`;
+    }).join('')||'近 3 個月內沒有歷史打球日';
+  }catch(e){ console.error(e); el.innerHTML='讀取失敗：'+esc(e.message); }
+}
+window.histShow=async id=>{
+  const el=$('hist_'+id); if(!el) return;
+  if(!el.classList.contains('hide')){ el.classList.add('hide'); return; }
+  el.classList.remove('hide');
+  el.innerHTML='<span class="sub">載入中…</span>';
+  try{
+    const snap=await getDocs(query(collection(db,'teams',session.teamId,'events',id,'signups'), orderBy('at')));
+    const cap=(histCache[id]&&histCache[id].capacity)||16;
+    const list=snap.docs.map(x=>x.data());
+    el.innerHTML=list.map((s,i)=>`<div class="item"><span class="num">${i+1}</span>
+      <span class="nm">${esc(s.name)}${s.byId!==s.memberId?`<span class="sub">（${esc(s.byName)}代報）</span>`:''}</span>
+      ${i>=cap?'<span class="tag t-wait">候補</span>':''}
+      ${s.confirmed?'<span class="tag t-ok">已確認</span>':''}</div>`).join('')
+      ||'<span class="sub">此場無報名資料</span>';
+  }catch(e){ el.innerHTML='讀取失敗：'+esc(e.message); }
+};
 window.createPlayday = async ()=>{
   const dateStr=$('nvDate').value, startStr=$('nvStart').value, endStr=$('nvEnd').value;
   const capacity=parseInt($('nvCap').value)||16, note=$('nvNote').value.trim();
@@ -1188,6 +1227,7 @@ function renderCheckin(){
       <button class="mini act" onclick="liveCheckIn(document.getElementById('ciSel').value)">簽到</button></div>`:'');
 }
 setInterval(()=>{ if(session && liveState && $('liveView') && !$('liveView').classList.contains('hide')) renderLive(); }, 30000);
+setInterval(()=>{ if(session && session.teamId && watchDay && watchDay!==todayStr()) watchEvents(); }, 60000);  // 跨夜自動更新報名清單
 
 /* ================= 排行與紀錄 ================= */
 async function renderRank(){
