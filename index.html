@@ -351,7 +351,8 @@ const firebaseConfig = {
   messagingSenderId: "223475807993",
   appId: "1:223475807993:web:e62e327f9a8ae43e479428"
 };
-const APP_VER='v2.8.4（2026-07-23）';
+const APP_VER='v2.8.5（2026-07-23）';
+try{ history.scrollRestoration='manual'; }catch(e){}
 document.getElementById('verTag').textContent='版本 '+APP_VER;
 const fbApp = initializeApp(firebaseConfig);
 const db = getFirestore(fbApp);
@@ -506,8 +507,10 @@ window.logout = ()=>{
 
 /* ---------- 主畫面 ---------- */
 async function enterApp(){
+  try{ if(document.activeElement) document.activeElement.blur(); }catch(e){}   // 收起鍵盤
   window.scrollTo(0,0);
-  try{ history.scrollRestoration='manual'; }catch(e){}
+  setTimeout(()=>window.scrollTo(0,0),150);   // iOS 收鍵盤後會殘留捲動位置，補打回頂部
+  setTimeout(()=>window.scrollTo(0,0),500);
   $('loginView').classList.add('hide');
   $('topbar').classList.remove('hide');
   $('appView').classList.remove('hide');
