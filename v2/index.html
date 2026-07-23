@@ -201,7 +201,7 @@ const firebaseConfig = {
   messagingSenderId: "223475807993",
   appId: "1:223475807993:web:e62e327f9a8ae43e479428"
 };
-const APP_VER='v2.4.7（2026-07-23）';
+const APP_VER='v2.5.0（2026-07-23）';
 document.getElementById('verTag').textContent='版本 '+APP_VER;
 const fbApp = initializeApp(firebaseConfig);
 const db = getFirestore(fbApp);
@@ -493,7 +493,11 @@ function watchEvents(){
         if(!$('manageView').classList.contains('hide')) renderManage();
       });
     });
-    if(typeof syncEventSettings==='function'){ syncEventSettings(); updateBindSel(); }
+    if(typeof watchLive==='function'){
+      if(boundEventId && !eventCache[boundEventId]){ boundEventId=null; if(unsubLive){unsubLive();unsubLive=null;} liveState=null; }
+      if(!boundEventId) watchLive();
+      updateBindSel();
+    }
     renderSignup();
     if(!$('manageView').classList.contains('hide')) renderManage();
   }, e=>{ console.error(e); toast('❌ 讀取打球日失敗：'+e.message); });
@@ -817,7 +821,8 @@ window.createTeam = async ()=>{
 /* ================= 現場（球場端計分排場） ================= */
 const K=32, START_ELO=1500;
 let liveState=null, unsubLive=null, liveSel=null, checkinOpen=false, lastHist=[];
-const liveDocRef = () => doc(db,'teams',session.teamId,'live','state');
+let boundEventId=null;   // 本裝置目前檢視/操作的打球日
+const liveDocRef = eid => doc(db,'teams',session.teamId,'live',eid);
 const matchesCol = () => collection(db,'teams',session.teamId,'matches');
 const isMgr = () => session && session.me.role==='manager';
 const mname = id => { const m=membersCache.find(x=>x.id===id); return m?m.name:'？'; };
@@ -832,17 +837,27 @@ function defaultLive(){
     pool:[], resting:[], lastPairs:[]};
 }
 function watchLive(){
-  if(unsubLive) unsubLive();
-  unsubLive=onSnapshot(liveDocRef(), s=>{
+  if(unsubLive){ unsubLive(); unsubLive=null; }
+  liveState=null;
+  const ev=liveEvent();
+  updateBindSel();
+  if(!ev){ if($('liveView') && !$('liveView').classList.contains('hide')) renderLive(); return; }
+  boundEventId=ev.id;
+  unsubLive=onSnapshot(liveDocRef(ev.id), s=>{
     if(s.exists()) liveState=s.data();
-    else { liveState=defaultLive(); if(isMgr()) setDoc(liveDocRef(), liveState); }
+    else{
+      liveState=defaultLive();
+      liveState.courtCount=ev.courtCount||2;
+      liveState.slotCount=ev.slotCount||2;
+      if(isMgr()) setDoc(liveDocRef(ev.id), liveState);   // 該場次第一次使用時建立
+    }
     liveSel=null;
-    syncEventSettings();
     updateBindSel();
+    if(checkinOpen) renderCheckin();
     if($('liveView') && !$('liveView').classList.contains('hide')) renderLive();
   }, e=>console.error(e));
 }
-function saveLive(){ return safeWrite(()=>setDoc(liveDocRef(), liveState)); }
+function saveLive(){ if(!boundEventId) return; return safeWrite(()=>setDoc(liveDocRef(boundEventId), liveState)); }
 
 function occupiedIds(){
   const ids=new Set();
@@ -1047,26 +1062,14 @@ function applyCounts(cc,sc){
   liveState.pool.sort((a,b)=>a.since-b.since);
   fillAndAdvance();
 }
-// 現場綁定的打球日：球友可在自己裝置選擇查看的場次（不影響全隊）；管理者選擇則切換全隊綁定
-let localEventId=null;
+// 本裝置綁定的打球日（預設今天），每個打球日的現場資料各自獨立
 function liveEvent(){
-  if(!liveState) return null;
-  if(!isMgr() && localEventId && eventCache[localEventId]) return eventCache[localEventId];
-  if(liveState.eventId && eventCache[liveState.eventId]) return eventCache[liveState.eventId];
+  if(boundEventId && eventCache[boundEventId]) return eventCache[boundEventId];
   return Object.values(eventCache).find(e=>e.dateStr===todayStr())||null;
-}
-// 綁定打球日的場地數/等待格設定自動套用到現場（每個打球日只套一次）
-function syncEventSettings(){
-  if(!isMgr() || !liveState) return;
-  const ev=liveEvent();
-  if(!ev || liveState.evApplied===ev.id) return;
-  liveState.evApplied=ev.id;
-  applyCounts(ev.courtCount||2, ev.slotCount||2);
-  saveLive();
 }
 function updateBindSel(){
   const box=$('evBind'); if(!box) return;
-  if(!session || !session.teamId || !liveState){ box.classList.add('hide'); return; }
+  if(!session || !session.teamId){ box.classList.add('hide'); return; }
   const evs=Object.values(eventCache).sort((a,b)=>a.dateStr.localeCompare(b.dateStr));
   if(!evs.length){ box.classList.add('hide'); return; }
   const bev=liveEvent();
@@ -1085,33 +1088,11 @@ document.addEventListener('click', e=>{
   const m=$('evBindMenu');
   if(m && !m.classList.contains('hide') && !e.target.closest('#evBind')) m.classList.add('hide');
 });
-window.liveBind = async evId=>{
-  if(!evId || !liveState) return;
-  if(isMgr()){
-    const cur=liveEvent();
-    if(cur && cur.id===evId){                       // 與目前綁定相同 → 僅記錄，不動名單
-      if(liveState.eventId!==evId){ liveState.eventId=evId; liveState.evApplied=evId; saveLive(); }
-      return;
-    }
-    const hasPeople=liveState.pool.length || liveState.resting.length
-      || liveState.slots.some(s=>s.p.some(x=>x))
-      || liveState.courts.some(c=>c.match);
-    if(hasPeople && !await askConfirm('切換打球日？現場名單（簽到／排隊／場上）將全部清空，重新開始')){
-      updateBindSel(); return;
-    }
-    const keep=liveState.courts.map(c=>c.label);
-    const ev=eventCache[evId];
-    liveState=defaultLive();
-    liveState.courts.forEach((c,i)=>c.label=keep[i]);
-    liveState.eventId=evId; liveState.evApplied=evId;
-    if(ev){ liveState.courtCount=ev.courtCount||2; liveState.slotCount=ev.slotCount||2; }
-    saveLive();
-  }else{
-    localEventId=evId;
-    updateBindSel();
-    if(checkinOpen) renderCheckin();
-    if($('liveView') && !$('liveView').classList.contains('hide')) renderLive();
-  }
+window.liveBind = evId=>{
+  if(!evId || boundEventId===evId) return;
+  boundEventId=evId;
+  watchLive();                                   // 載入該打球日自己的現場資料
+  if(checkinOpen) renderCheckin();
 };
 let evSet=null;
 window.openEvSet = evId=>{
@@ -1167,7 +1148,7 @@ function speak(t){ if(!voiceOn()) return; try{ speechSynthesis.cancel(); const u
 /* ---- 現場畫面 ---- */
 function renderLive(){
   const box=$('liveView'); if(!box) return;
-  if(!liveState){ box.innerHTML='<div class="card"><div class="sub">載入中…</div></div>'; return; }
+  if(!liveState){ box.innerHTML='<div class="card"><div class="sub">'+(liveEvent()?'載入中…':'尚無打球日，請先在「管理 → 打球日」建立，或用頁首下拉選擇場次')+'</div></div>'; return; }
   const st=liveState, mgr=isMgr();
   let html='';
   if(st.paused) html+='<div class="notice" style="margin-bottom:12px;">⏸ 已暫停自動排場（管理 → ⚙ 系統 可恢復）</div>';
