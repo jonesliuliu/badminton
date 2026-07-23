@@ -201,7 +201,7 @@ const firebaseConfig = {
   messagingSenderId: "223475807993",
   appId: "1:223475807993:web:e62e327f9a8ae43e479428"
 };
-const APP_VER='v2.4.2（2026-07-23）';
+const APP_VER='v2.4.3（2026-07-23）';
 document.getElementById('verTag').textContent='版本 '+APP_VER;
 const fbApp = initializeApp(firebaseConfig);
 const db = getFirestore(fbApp);
@@ -1211,23 +1211,17 @@ function renderCheckin(){
   const ev=liveEvent();
   const list=ev?(signupCache[ev.id]||[]):[];
   const cap=ev?(ev.capacity||16):0;
-  const rows=list.map((s,i)=>{
+  const rows=list.slice(0,cap).map((s,i)=>{      // 只顯示正取名單
     const here=occ.has(s.memberId);
     const canDo=!here && (mgr || s.memberId===session.me.id);
     return `<div class="item">
       <span class="num">${i+1}</span>
       <span class="nm" style="font-size:18px;">${esc(s.name)}</span>
-      ${i>=cap?'<span class="tag t-wait">候補</span>':''}
       ${here?'<span class="tag t-main">✓ 已簽到</span>':''}
       ${canDo?`<button class="ok" style="padding:8px 22px;" onclick="liveCheckIn('${s.memberId}')">簽到</button>`:''}
     </div>`;
   }).join('');
-  const others=membersCache.filter(m=>!occ.has(m.id) && !list.some(s=>s.memberId===m.id))
-    .filter(m=>mgr || m.id===session.me.id);
-  el.innerHTML=(rows||'<div class="sub">此打球日尚無報名資料（或現場未綁定打球日）</div>')
-    +(others.length?`<div class="divider">臨時加入（未報名）</div>
-      <div class="row"><select id="ciSel">${others.map(m=>`<option value="${m.id}">${esc(m.name)}</option>`).join('')}</select>
-      <button class="mini act" onclick="liveCheckIn(document.getElementById('ciSel').value)">簽到</button></div>`:'');
+  el.innerHTML=rows||'<div class="sub">此打球日尚無正取名單（或現場未綁定打球日）</div>';
 }
 setInterval(()=>{ if(session && liveState && $('liveView') && !$('liveView').classList.contains('hide')) renderLive(); }, 30000);
 setInterval(()=>{ if(session && session.teamId && watchDay && watchDay!==todayStr()) watchEvents(); }, 60000);  // 跨夜自動更新報名清單
