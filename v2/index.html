@@ -118,6 +118,13 @@
   <div id="adminView" class="hide"></div>
 </main>
 
+<div class="overlay" id="checkinDlg">
+  <div class="dlgbox" style="width:min(560px,100%);max-height:85vh;overflow:auto;">
+    <div class="msg" style="font-weight:700;">✅ 簽到 — 請點自己名字旁的「簽到」</div>
+    <div id="checkinList"></div>
+    <div class="dlgbtns"><button class="cancel" onclick="closeCheckin()">關閉</button></div>
+  </div>
+</div>
 <div class="overlay" id="scoreDlg">
   <div class="dlgbox" style="width:min(520px,100%);">
     <div class="msg" id="sdTitle" style="text-align:center;font-weight:700;"></div>
@@ -777,10 +784,13 @@ function fillAndAdvance(){
 }
 /* ---- 簽到 / 離場 / 休息 ---- */
 window.liveCheckIn = id=>{
-  if(!isMgr() || !id) return;
+  if(!id || !liveState) return;
+  if(!isMgr() && session.me.id!==id) return;
   if(occupiedIds().has(id)){ toast('已在現場名單中'); return; }
   liveState.pool.push({id, since:Date.now()});
   fillAndAdvance(); saveLive();
+  toast(mname(id)+' 已簽到');
+  renderCheckin();
 };
 window.liveLeave = async id=>{
   if(!isMgr()) return;
@@ -956,13 +966,15 @@ function renderLive(){
       <span class="sub">等待格</span>${seg(st.slotCount,'liveSlotCount')}
       <button class="mini${st.paused?' red':''}" onclick="livePause()">${st.paused?'▶ 恢復排場':'⏸ 暫停排場'}</button>
       <button class="mini" onclick="liveVoice()">${voiceOn()?'🔊 語音開':'🔇 語音關'}</button>
-      <button class="mini act" onclick="toggleCheckin()">✅ 簽到</button>
+      <button class="mini act" onclick="openCheckin()">✅ 簽到</button>
       <button class="mini red" onclick="liveReset()">🌅 結束今天</button>
     </div>
     ${st.paused?'<div class="notice">已暫停自動排場</div>':''}
     <div class="sub">💡 點兩位球員可互換位置（場上／等待格／排隊區皆可），點空位可把選取的球員移入</div>
-    <div id="checkinBox" class="hide"></div>
     </div>`;
+  }else{
+    html+=`<div class="card"><div class="row"><button class="mini act" onclick="openCheckin()">✅ 簽到</button>
+      <span class="sub">到場後請點簽到加入排隊</span></div></div>`;
   }
   html+='<div class="card"><h2>🏸 球場</h2>';
   for(let i=0;i<st.courtCount;i++){
@@ -1020,23 +1032,34 @@ function renderLive(){
     ${mgr?`<button class="mini red" onclick="liveLeave('${id}')">離場</button>`:''}</div>`).join('')||'<div class="sub">無人休息</div>';
   html+='</div>';
   box.innerHTML=html;
-  if(mgr && checkinOpen) renderCheckin();
+  if(checkinOpen) renderCheckin();
 }
-window.toggleCheckin=()=>{ checkinOpen=!checkinOpen; renderLive(); };
+window.openCheckin=()=>{ checkinOpen=true; renderCheckin(); $('checkinDlg').classList.add('show'); };
+window.closeCheckin=()=>{ checkinOpen=false; $('checkinDlg').classList.remove('show'); };
 function renderCheckin(){
-  const el=$('checkinBox'); if(!el) return;
-  el.classList.remove('hide');
+  const el=$('checkinList'); if(!el || !liveState) return;
   const occ=occupiedIds();
+  const mgr=isMgr();
   const ev=Object.values(eventCache).find(e=>e.dateStr===todayStr());
   const list=ev?(signupCache[ev.id]||[]):[];
-  const rows=list.filter(s=>!occ.has(s.memberId)).map(s=>
-    `<button class="mini act" onclick="liveCheckIn('${s.memberId}')">＋ ${esc(s.name)}</button>`).join(' ');
-  const others=membersCache.filter(m=>!occ.has(m.id) && !list.some(s=>s.memberId===m.id));
-  el.innerHTML=`<div class="divider">今日報名名單（點名字簽到）</div>
-    <div class="row">${rows||'<span class="sub">'+(ev?'報名者皆已簽到':'今天沒有報名資料，可用下方清單簽到')+'</span>'}</div>
-    <div class="divider">其他成員（臨時加入）</div>
-    <div class="row"><select id="ciSel">${others.map(m=>`<option value="${m.id}">${esc(m.name)}</option>`).join('')}</select>
-    <button class="mini act" onclick="liveCheckIn(document.getElementById('ciSel').value)">簽到</button></div>`;
+  const cap=ev?(ev.capacity||16):0;
+  const rows=list.map((s,i)=>{
+    const here=occ.has(s.memberId);
+    const canDo=!here && (mgr || s.memberId===session.me.id);
+    return `<div class="item">
+      <span class="num">${i+1}</span>
+      <span class="nm" style="font-size:18px;">${esc(s.name)}</span>
+      ${i>=cap?'<span class="tag t-wait">候補</span>':''}
+      ${here?'<span class="tag t-main">✓ 已簽到</span>':''}
+      ${canDo?`<button class="ok" style="padding:8px 22px;" onclick="liveCheckIn('${s.memberId}')">簽到</button>`:''}
+    </div>`;
+  }).join('');
+  const others=membersCache.filter(m=>!occ.has(m.id) && !list.some(s=>s.memberId===m.id))
+    .filter(m=>mgr || m.id===session.me.id);
+  el.innerHTML=(rows||'<div class="sub">今天沒有打球日報名資料</div>')
+    +(others.length?`<div class="divider">臨時加入（未報名）</div>
+      <div class="row"><select id="ciSel">${others.map(m=>`<option value="${m.id}">${esc(m.name)}</option>`).join('')}</select>
+      <button class="mini act" onclick="liveCheckIn(document.getElementById('ciSel').value)">簽到</button></div>`:'');
 }
 setInterval(()=>{ if(session && liveState && $('liveView') && !$('liveView').classList.contains('hide')) renderLive(); }, 30000);
 
