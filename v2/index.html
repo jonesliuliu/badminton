@@ -75,6 +75,11 @@
   .pchip.selchip{outline:2px solid var(--teal); background:#134e4a;}
   .emptycell{display:inline-flex; border:1.5px dashed var(--line); color:var(--sub); padding:8px 14px;
     border-radius:14px; cursor:pointer; font-size:14px; user-select:none;}
+  .pchip{touch-action:pan-y; -webkit-touch-callout:none;}
+  .dragghost{position:fixed; z-index:99; background:var(--teal); color:#fff; padding:10px 18px;
+    border-radius:20px; font-size:17px; font-weight:700; pointer-events:none; box-shadow:0 4px 16px rgba(0,0,0,.5);}
+  body.dragging{user-select:none; -webkit-user-select:none;}
+  .dropover{outline:2px solid var(--teal); background:#134e4a !important; border-radius:14px;}
   #toast{position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:#000; color:#fff;
     padding:12px 22px; border-radius:24px; font-size:15px; opacity:0; transition:opacity .3s; z-index:99; pointer-events:none; max-width:90vw;}
   #toast.show{opacity:.94;}
@@ -201,7 +206,7 @@ const firebaseConfig = {
   messagingSenderId: "223475807993",
   appId: "1:223475807993:web:e62e327f9a8ae43e479428"
 };
-const APP_VER='v2.5.0（2026-07-23）';
+const APP_VER='v2.5.1（2026-07-23）';
 document.getElementById('verTag').textContent='版本 '+APP_VER;
 const fbApp = initializeApp(firebaseConfig);
 const db = getFirestore(fbApp);
@@ -887,8 +892,7 @@ function fillAndAdvance(){
       if(s.p.some(x=>x)) continue;              // 有人的格子不動（缺人不自動遞補）
       if(st.pool.length<4) continue;
       const four=st.pool.slice(0,4);
-      const split=bestSplit(four);
-      s.p=[split.A[0],split.A[1],split.B[0],split.B[1]];
+      s.p=[four[0],four[1],four[2],four[3]];          // 不分隊，上場時才自動分
       st.pool=st.pool.filter(p=>!four.includes(p));
     }
   };
@@ -899,7 +903,8 @@ function fillAndAdvance(){
       if(c.match) continue;
       const s0=st.slots[0];
       if(!s0 || s0.p.some(x=>!x)) break;        // 等待一缺人 → 不遞補上場
-      c.match={teamA:[s0.p[0].id,s0.p[1].id], teamB:[s0.p[2].id,s0.p[3].id], startedAt:null, seq:null};
+      const split=bestSplit(s0.p);              // 上場那一刻做平衡分隊
+      c.match={teamA:[split.A[0].id,split.A[1].id], teamB:[split.B[0].id,split.B[1].id], startedAt:null, seq:null};
       st.slots.shift(); st.slots.push({p:[null,null,null,null]});
       fillSlots();
     }
@@ -946,7 +951,65 @@ window.slotCancel = async (i,j)=>{
   saveLive();
 };
 /* ---- 點選互換（管理者）：點 A 再點 B 交換；點空位移入 ---- */
+/* ---- 拖曳（管理者）：長按約 0.3 秒或水平快滑拉起；放到另一人=互換、放到空位=移入 ---- */
+let ldrag=null, dragDone=false;
+function ldragActivate(){
+  if(!ldrag || ldrag.active) return;
+  ldrag.active=true;
+  const g=document.createElement('div');
+  g.className='dragghost'; g.textContent=ldrag.name;
+  g.style.left=(ldrag.lastX+14)+'px'; g.style.top=(ldrag.lastY-24)+'px';
+  document.body.appendChild(g); ldrag.ghost=g;
+  document.body.classList.add('dragging');
+}
+document.addEventListener('pointerdown', e=>{
+  if(!isMgr() || !liveState) return;
+  const chip=e.target.closest('[data-lt]');
+  if(!chip || e.target.closest('button')) return;
+  const loc={t:chip.dataset.lt, i:+chip.dataset.li, j:+chip.dataset.lj, team:chip.dataset.lteam||''};
+  const v=locGet(loc); if(!v) return;
+  ldrag={loc, name:mname(v.id), startX:e.clientX, startY:e.clientY, lastX:e.clientX, lastY:e.clientY,
+         active:false, ghost:null, timer:setTimeout(ldragActivate,300)};
+});
+document.addEventListener('pointermove', e=>{
+  if(!ldrag) return;
+  ldrag.lastX=e.clientX; ldrag.lastY=e.clientY;
+  const dx=e.clientX-ldrag.startX, dy=e.clientY-ldrag.startY;
+  if(!ldrag.active){
+    if(Math.abs(dx)>12 && Math.abs(dx)>Math.abs(dy)) ldragActivate();
+    else if(Math.abs(dy)>14){ clearTimeout(ldrag.timer); ldrag=null; return; }
+    else return;
+  }
+  if(e.cancelable) e.preventDefault();
+  ldrag.ghost.style.left=(e.clientX+14)+'px'; ldrag.ghost.style.top=(e.clientY-24)+'px';
+  document.querySelectorAll('.dropover').forEach(x=>x.classList.remove('dropover'));
+  const t=document.elementFromPoint(e.clientX,e.clientY);
+  const tgt=t && t.closest('[data-lt]');
+  if(tgt) tgt.classList.add('dropover');
+});
+document.addEventListener('touchmove', e=>{ if(ldrag&&ldrag.active&&e.cancelable) e.preventDefault(); }, {passive:false});
+document.addEventListener('pointerup', e=>{
+  if(!ldrag) return;
+  clearTimeout(ldrag.timer);
+  if(ldrag.active){
+    const t=document.elementFromPoint(e.clientX,e.clientY);
+    const tgt=t && t.closest('[data-lt]');
+    if(tgt){
+      const loc={t:tgt.dataset.lt, i:+tgt.dataset.li, j:+tgt.dataset.lj, team:tgt.dataset.lteam||''};
+      if(!sameLoc(ldrag.loc,loc)) doSwap(ldrag.loc, loc);
+    }
+    if(ldrag.ghost) ldrag.ghost.remove();
+    document.body.classList.remove('dragging');
+    dragDone=true; setTimeout(()=>dragDone=false,350);
+    liveSel=null; renderLive();
+  }
+  ldrag=null;
+});
+document.addEventListener('pointercancel', ()=>{
+  if(ldrag){ clearTimeout(ldrag.timer); if(ldrag.ghost) ldrag.ghost.remove(); document.body.classList.remove('dragging'); ldrag=null; }
+});
 window.liveTap = (t,i,j,team)=>{
+  if(dragDone) return;
   if(!isMgr()) return;
   const loc={t,i,j,team:team||''};
   if(!liveSel){
@@ -1163,7 +1226,7 @@ function renderLive(){
                   : `<span class="tag t-promo">準備中</span></div>`;
     const team=(ids,tn)=>ids.map((id,j)=>{
       const seld=sameLoc(liveSel,{t:'court',i,j,team:tn});
-      return `<span class="pchip${seld?' selchip':''}" ${mgr?`onclick="liveTap('court',${i},${j},'${tn}')"`:''}>${esc(mname(id))}<small>${melo(id)}</small></span>`;
+      return `<span class="pchip${seld?' selchip':''}" data-lt="court" data-li="${i}" data-lj="${j}" data-lteam="${tn}" ${mgr?`onclick="liveTap('court',${i},${j},'${tn}')"`:''}>${esc(mname(id))}<small>${melo(id)}</small></span>`;
     }).join('');
     html+=`<div class="row">${team(m.teamA,'A')}<span class="sub"><b>VS</b></span>${team(m.teamB,'B')}</div>`;
     if(mgr){
@@ -1179,15 +1242,16 @@ function renderLive(){
     const s=st.slots[i];
     const cell=j=>{
       const v=s.p[j];
-      if(!v) return `<span class="emptycell" ${mgr?`onclick="liveTap('slot',${i},${j},'')"`:''}>空位</span>`;
+      const attrs=`data-lt="slot" data-li="${i}" data-lj="${j}" data-lteam=""`;
+      if(!v) return `<span class="emptycell" ${attrs} ${mgr?`onclick="liveTap('slot',${i},${j},'')"`:''}>空位</span>`;
       const selfCell=session.me.id===v.id;
       const seld=sameLoc(liveSel,{t:'slot',i,j,team:''});
       const xbtn=(mgr||selfCell)?`<button class="mini red" style="padding:2px 8px;" onclick="event.stopPropagation();slotCancel(${i},${j})">✕</button>`:'';
-      return `<span class="pchip${seld?' selchip':''}" ${mgr?`onclick="liveTap('slot',${i},${j},'')"`:''}>${esc(mname(v.id))}<small>${melo(v.id)}</small>${xbtn}</span>`;
+      return `<span class="pchip${seld?' selchip':''}" ${attrs} ${mgr?`onclick="liveTap('slot',${i},${j},'')"`:''}>${esc(mname(v.id))}<small>${melo(v.id)}</small>${xbtn}</span>`;
     };
     const partial=s.p.some(x=>x)&&s.p.some(x=>!x);
     html+=`<div class="divider"><b style="color:var(--txt);">等待${zh[i]}</b> ${partial?'<span class="tag t-wait">缺人，請協調遞補</span>':''}</div>
-      <div class="row">${cell(0)}${cell(1)}<span class="sub"><b>VS</b></span>${cell(2)}${cell(3)}</div>`;
+      <div class="row">${cell(0)}${cell(1)}${cell(2)}${cell(3)}</div>`;
   }
   html+='</div>';
   st.pool.sort((a,b)=>a.since-b.since);
@@ -1195,7 +1259,7 @@ function renderLive(){
   html+=st.pool.map((p,i)=>{
     const seld=sameLoc(liveSel,{t:'pool',i,j:0,team:''});
     return `<div class="item"><span class="num">${i+1}</span>
-      <span class="pchip${seld?' selchip':''}" ${mgr?`onclick="liveTap('pool',${i},0,'')"`:''}>${esc(mname(p.id))}<small>${melo(p.id)}</small></span>
+      <span class="pchip${seld?' selchip':''}" data-lt="pool" data-li="${i}" data-lj="0" data-lteam="" ${mgr?`onclick="liveTap('pool',${i},0,'')"`:''}>${esc(mname(p.id))}<small>${melo(p.id)}</small></span>
       <span class="sub">等 ${fmtWait(Date.now()-p.since)}</span><div class="spacer"></div>
       ${(mgr||session.me.id===p.id)?`<button class="mini" onclick="liveRest('${p.id}')">休息</button>`:''}
       ${mgr?`<button class="mini red" onclick="liveLeave('${p.id}')">離場</button>`:''}
@@ -1209,7 +1273,7 @@ function renderLive(){
   html+='</div>';
   if(mgr){
     html+=`<div class="card">
-      <div class="sub">💡 點兩位球員可互換位置（場上／等待格／排隊區皆可），點空位可把選取的球員移入</div>
+      <div class="sub">💡 按住名字約半秒即可拖曳：拖到另一人＝互換、拖到空位＝移入遞補；也可以點兩位球員互換</div>
       <div class="row" style="margin-top:12px;">
         <button class="danger" style="flex:1;padding:14px;font-size:17px;" onclick="liveReset()">🌅 結束今天（清空現場名單）</button>
       </div>
