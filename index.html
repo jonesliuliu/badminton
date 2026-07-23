@@ -88,8 +88,10 @@
   <h1>🏸 <span id="teamName"></span></h1>
   <span class="sub" id="whoami"></span>
   <div class="spacer"></div>
+  <select id="evBindSel" class="hide" style="max-width:200px;" onchange="liveBind(this.value)"></select>
   <button class="hbtn hide" id="navBack" onclick="backToAdmin()">⬅ 總覽</button>
   <button class="hbtn on" id="navSignup" onclick="showView('signup')">📅 報名</button>
+  <button class="hbtn hide" id="navCheckin" onclick="openCheckin()">✅ 簽到</button>
   <button class="hbtn" id="navLive" onclick="showView('live')">🏟 現場</button>
   <button class="hbtn" id="navRank" onclick="showView('rank')">📊 排行</button>
   <button class="hbtn hide" id="navManage" onclick="showView('manage')">🛠 管理</button>
@@ -190,7 +192,7 @@ const firebaseConfig = {
   messagingSenderId: "223475807993",
   appId: "1:223475807993:web:e62e327f9a8ae43e479428"
 };
-const APP_VER='v2.3.1（2026-07-23）';
+const APP_VER='v2.3.2（2026-07-23）';
 document.getElementById('verTag').textContent='版本 '+APP_VER;
 const fbApp = initializeApp(firebaseConfig);
 const db = getFirestore(fbApp);
@@ -346,6 +348,7 @@ async function enterApp(){
   $('btnPw').classList.toggle('hide', session.me.id==='__admin__');
   $('navLive').classList.remove('hide');
   $('navRank').classList.remove('hide');
+  $('navCheckin').classList.remove('hide');
   await refreshMembers();
   await refreshVenues();
   watchEvents();
@@ -360,6 +363,8 @@ async function enterAdmin(){
   $('teamName').textContent='系統管理';
   $('whoami').textContent=session.me.name+'（總管理者）';
   $('navSignup').classList.add('hide');
+  $('navCheckin').classList.add('hide');
+  $('evBindSel').classList.add('hide');
   $('navLive').classList.add('hide');
   $('navRank').classList.add('hide');
   $('navManage').classList.add('hide');
@@ -475,7 +480,7 @@ function watchEvents(){
         if(!$('manageView').classList.contains('hide')) renderManage();
       });
     });
-    if(typeof syncEventSettings==='function') syncEventSettings();
+    if(typeof syncEventSettings==='function'){ syncEventSettings(); updateBindSel(); }
     renderSignup();
     if(!$('manageView').classList.contains('hide')) renderManage();
   }, e=>{ console.error(e); toast('❌ 讀取打球日失敗：'+e.message); });
@@ -760,6 +765,7 @@ function watchLive(){
     else { liveState=defaultLive(); if(isMgr()) setDoc(liveDocRef(), liveState); }
     liveSel=null;
     syncEventSettings();
+    updateBindSel();
     if($('liveView') && !$('liveView').classList.contains('hide')) renderLive();
   }, e=>console.error(e));
 }
@@ -983,6 +989,16 @@ function syncEventSettings(){
   applyCounts(ev.courtCount||2, ev.slotCount||2);
   saveLive();
 }
+function updateBindSel(){
+  const sel=$('evBindSel'); if(!sel) return;
+  if(!session || !session.teamId || !isMgr() || !liveState){ sel.classList.add('hide'); return; }
+  const evs=Object.values(eventCache).sort((a,b)=>a.dateStr.localeCompare(b.dateStr));
+  if(!evs.length){ sel.classList.add('hide'); return; }
+  const bev=liveEvent();
+  sel.innerHTML=(bev?'':'<option value="" selected>選擇打球日</option>')
+    +evs.map(e=>`<option value="${e.id}" ${bev&&bev.id===e.id?'selected':''}>${fmtDate(e.dateStr)} ${esc(e.startStr||'')}</option>`).join('');
+  sel.classList.remove('hide');
+}
 window.liveBind = evId=>{
   if(!isMgr() || !liveState || !evId) return;
   liveState.eventId=evId;
@@ -1055,25 +1071,17 @@ function renderLive(){
       <span class="evtime">${esc(bev.startStr||'')}${bev.endStr?'–'+esc(bev.endStr):''}</span>
       ${bev.venueName?`<span class="evvenue">📍${esc(bev.venueName)}</span>`:''}
       <span class="cnt">報名 ${Math.min(bl.length,bcap)}/${bcap}${bl.length>bcap?`｜候補 ${bl.length-bcap}`:''}｜場地 ${bev.courtCount||2}｜等待格 ${bev.slotCount||2}</span>`
-     :`<span class="sub">今天沒有對應的打球日${mgr&&evs.length?'，可在右側選擇要進行的場次':''}</span>`}
+     :`<span class="sub">今天沒有對應的打球日${mgr?'，請用頁首的下拉選單選擇場次':''}</span>`}
     <div class="spacer"></div>
-    ${mgr&&evs.length?`<select onchange="liveBind(this.value)">
-      ${bev?'':'<option value="" selected>選擇打球日</option>'}
-      ${evs.map(e=>`<option value="${e.id}" ${bev&&bev.id===e.id?'selected':''}>${fmtDate(e.dateStr)} ${esc(e.startStr||'')}</option>`).join('')}
-    </select>`:''}
   </div>${bev&&bev.note?`<div class="sub" style="margin-top:4px;">${esc(bev.note)}</div>`:''}</div>`;
   if(mgr){
     html+=`<div class="card"><div class="row">
       <button class="mini${st.paused?' red':''}" onclick="livePause()">${st.paused?'▶ 恢復排場':'⏸ 暫停排場'}</button>
-      <button class="mini act" onclick="openCheckin()">✅ 簽到</button>
       <button class="mini red" onclick="liveReset()">🌅 結束今天</button>
     </div>
     ${st.paused?'<div class="notice">已暫停自動排場</div>':''}
     <div class="sub">💡 點兩位球員可互換位置（場上／等待格／排隊區皆可），點空位可把選取的球員移入</div>
     </div>`;
-  }else{
-    html+=`<div class="card"><div class="row"><button class="mini act" onclick="openCheckin()">✅ 簽到</button>
-      <span class="sub">到場後請點簽到加入排隊</span></div></div>`;
   }
   html+='<div class="card"><h2>🏸 球場</h2>';
   for(let i=0;i<st.courtCount;i++){
