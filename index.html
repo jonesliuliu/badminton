@@ -27,11 +27,12 @@
   .cb-head{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:4px;}
   .cb-teams{display:flex; gap:8px; align-items:stretch; margin:8px 0;}
   .cb-vs{align-self:center; font-weight:900; font-size:20px; color:var(--sub);}
-  .cb-team{flex:1; border-radius:12px; padding:10px; display:flex; flex-direction:column; gap:8px;
+  .cb-team{flex:1 1 0; min-width:0; border-radius:12px; padding:10px; display:flex; flex-direction:column; gap:8px;
     background:var(--panel); border:1px solid var(--line);}
-  .cb-team .pchip{background:var(--panel2); width:100%; justify-content:space-between; align-items:center; padding:8px 12px;}
-  .cbp-txt{display:flex; flex-direction:column; line-height:1.2; text-align:left;}
-  .cbp-name{font-size:clamp(20px,2.6vw,30px); font-weight:800; color:var(--txt);}
+  .cb-team .pchip{background:var(--panel2); width:100%; min-width:0; justify-content:space-between; align-items:center; padding:8px 12px;}
+  .cbp-txt{display:flex; flex-direction:column; line-height:1.2; text-align:left; min-width:0; flex:1;}
+  .cbp-name{font-size:clamp(20px,2.6vw,30px); font-weight:800; color:var(--txt);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%;}
   .cbp-elo{font-size:12px; color:var(--sub); font-weight:400;}
   .cbx{background:var(--panel); border:1px solid var(--line); color:var(--sub); border-radius:10px;
     min-width:34px; height:34px; font-size:15px; margin-left:10px; padding:0;}
@@ -105,7 +106,8 @@
   .errbar{background:var(--red); color:#fff; text-align:center; padding:10px; font-size:15px; display:none;}
   .errbar.show{display:block;}
   .tabs{display:flex; background:var(--panel2); border-radius:12px; overflow:hidden; margin-bottom:14px;}
-  .tabs button{flex:1; background:transparent; padding:12px 4px; font-size:15px; color:var(--sub); border-radius:0;}
+  .tabs button{flex:1; background:transparent; padding:12px 4px; font-size:15px; color:var(--sub); border-radius:0;
+    display:flex; align-items:center; justify-content:center; gap:5px;}
   .tabs button.on{background:var(--blue); color:#fff; font-weight:700;}
   .hide{display:none;}
   .overlay{position:fixed; inset:0; background:rgba(0,0,0,.6); display:none; align-items:center; justify-content:center; z-index:50; padding:16px;}
@@ -265,7 +267,7 @@ const firebaseConfig = {
   messagingSenderId: "223475807993",
   appId: "1:223475807993:web:e62e327f9a8ae43e479428"
 };
-const APP_VER='v2.6.2-beta（2026-07-23）';
+const APP_VER='v2.6.3-beta（2026-07-23）';
 document.getElementById('verTag').textContent='版本 '+APP_VER;
 const fbApp = initializeApp(firebaseConfig);
 const db = getFirestore(fbApp);
@@ -682,16 +684,25 @@ window.confirmSignup = async (evId, sid)=>{
   await safeWrite(()=>updateDoc(doc(signupsCol(evId), sid), {confirmed:true, confirmedAt:serverTimestamp()}), '已確認報到');
 };
 
+/* ---------- 線條圖示 ---------- */
+const LNI_A='class="lni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"';
+const LNI={
+  cal:`<svg ${LNI_A}><rect x="3" y="4" width="18" height="17" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg>`,
+  ppl:`<svg ${LNI_A}><circle cx="9" cy="8" r="3"/><path d="M4 20c0-3 2.2-5 5-5s5 2 5 5"/><circle cx="17" cy="9" r="2.5"/><path d="M15.5 15.2c2.6.3 4.5 2 4.5 4.8"/></svg>`,
+  pin:`<svg ${LNI_A}><path d="M12 21s-6-5.3-6-10a6 6 0 1 1 12 0c0 4.7-6 10-6 10z"/><circle cx="12" cy="11" r="2.2"/></svg>`,
+  clk:`<svg ${LNI_A}><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>`,
+  set:`<svg ${LNI_A}><line x1="4" y1="7" x2="20" y2="7"/><circle cx="9" cy="7" r="2.4"/><line x1="4" y1="17" x2="20" y2="17"/><circle cx="15" cy="17" r="2.4"/></svg>`
+};
 /* ---------- 管理頁（分頁） ---------- */
 window.setManageTab = t=>{ manageTab=t; renderManage(); };
 async function renderManage(){
   const box=$('manageView');
   const tabs=`<div class="tabs">
-    <button class="${manageTab==='events'?'on':''}" onclick="setManageTab('events')">📅 打球日</button>
-    <button class="${manageTab==='members'?'on':''}" onclick="setManageTab('members')">👥 成員</button>
-    <button class="${manageTab==='venues'?'on':''}" onclick="setManageTab('venues')">🏟 球館</button>
-    <button class="${manageTab==='hist'?'on':''}" onclick="setManageTab('hist')">🕘 歷史</button>
-    <button class="${manageTab==='sys'?'on':''}" onclick="setManageTab('sys')">⚙ 系統</button>
+    <button class="${manageTab==='events'?'on':''}" onclick="setManageTab('events')">${LNI.cal} 打球日</button>
+    <button class="${manageTab==='members'?'on':''}" onclick="setManageTab('members')">${LNI.ppl} 成員</button>
+    <button class="${manageTab==='venues'?'on':''}" onclick="setManageTab('venues')">${LNI.pin} 球館</button>
+    <button class="${manageTab==='hist'?'on':''}" onclick="setManageTab('hist')">${LNI.clk} 歷史</button>
+    <button class="${manageTab==='sys'?'on':''}" onclick="setManageTab('sys')">${LNI.set} 系統</button>
   </div>`;
   let body='';
   if(manageTab==='events'){
