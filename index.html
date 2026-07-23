@@ -267,11 +267,11 @@
     <h4>7｜積分怎麼算（Elo 制）</h4>
     <p>初始 1500 分，隊伍實力＝兩人平均。贏弱隊加分少、爆冷贏強隊加分多；分差越大加成越高（21:5 比 21:19 多）；勝負雙方加減相同。管理者修改或刪除任何一場紀錄後，全體積分依完整紀錄重新計算。詳細公式與實例見「排行」頁底部。</p>
 
-    <h4>8｜總管理者</h4>
-    <p>登入頁球隊選「⚙ 系統管理」。可檢視各球隊總覽（成員數/管理者/近期場次）、建立與刪除球隊、調整球隊顯示順序（影響登入選單）、以「進入」身分管理任一球隊。</p>
+    <h4>8｜加到手機桌面（像 App 一樣開）</h4>
+    <p><b>iPhone（用 Safari）</b>：開啟本網站 → 點下方「分享」鈕（方框加上箭頭）→ 下滑選「加入主畫面」→ 命名後「加入」。</p>
+    <p><b>Android（用 Chrome）</b>：開啟本網站 → 點右上角「⋮」→ 選「加到主畫面／安裝應用程式」→ 確認「新增」。桌面就會出現「羽球球隊系統」圖示，點開即全螢幕使用。</p>
 
     <div class="mwarn">
-      <p>・資料即時雲端同步，多裝置共用；公司網路可能封鎖 Firebase，連不上請改用行動網路</p>
       <p>・「取消報名」＝這天不來（月繳者記請假）；現場的「✕」＝人在場只是這場不打，兩者不同</p>
     </div>
 
@@ -356,7 +356,7 @@ const firebaseConfig = {
   messagingSenderId: "223475807993",
   appId: "1:223475807993:web:e62e327f9a8ae43e479428"
 };
-const APP_VER='v2.8.8（2026-07-23）';
+const APP_VER='v2.8.9（2026-07-23）';
 try{ history.scrollRestoration='manual'; }catch(e){}
 function fitHeader(){}
 function resetScroll(){ const m=document.getElementById('appView'); if(m) m.scrollTop=0; window.scrollTo(0,0); }
