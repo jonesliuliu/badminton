@@ -100,7 +100,7 @@
   </div>
   <button class="hbtn" id="navLive" onclick="showView('live')">🏟 現場</button>
   <button class="hbtn hide" id="navCheckin" onclick="openCheckin()">✅ 簽到</button>
-  <span id="navDiv" class="hide" style="width:4px;align-self:stretch;background:var(--red);border-radius:2px;"></span>
+  <span id="navDiv" class="hide" style="width:2px;align-self:stretch;margin:6px 4px;background:#475569;border-radius:1px;"></span>
   <button class="hbtn on" id="navSignup" onclick="showView('signup')">📅 報名</button>
   <button class="hbtn" id="navRank" onclick="showView('rank')">📊 排行</button>
   <button class="hbtn hide" id="navManage" onclick="showView('manage')">🛠 管理</button>
@@ -201,7 +201,7 @@ const firebaseConfig = {
   messagingSenderId: "223475807993",
   appId: "1:223475807993:web:e62e327f9a8ae43e479428"
 };
-const APP_VER='v2.4.1（2026-07-23）';
+const APP_VER='v2.4.2（2026-07-23）';
 document.getElementById('verTag').textContent='版本 '+APP_VER;
 const fbApp = initializeApp(firebaseConfig);
 const db = getFirestore(fbApp);
