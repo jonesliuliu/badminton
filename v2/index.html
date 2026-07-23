@@ -118,6 +118,17 @@
   <div id="adminView" class="hide"></div>
 </main>
 
+<div class="overlay" id="evsetDlg">
+  <div class="dlgbox">
+    <div class="msg" id="evsetTitle" style="font-weight:700;"></div>
+    <div class="row"><span class="sub" style="width:70px;">場地數</span><span id="evsetCourts"></span></div>
+    <div class="row"><span class="sub" style="width:70px;">等待格</span><span id="evsetSlots"></span></div>
+    <div class="dlgbtns">
+      <button class="cancel" onclick="closeEvSet()">取消</button>
+      <button class="ok" onclick="saveEvSet()">儲存</button>
+    </div>
+  </div>
+</div>
 <div class="overlay" id="checkinDlg">
   <div class="dlgbox" style="width:min(560px,100%);max-height:85vh;overflow:auto;">
     <div class="msg" style="font-weight:700;">✅ 簽到 — 請點自己名字旁的「簽到」</div>
@@ -179,7 +190,7 @@ const firebaseConfig = {
   messagingSenderId: "223475807993",
   appId: "1:223475807993:web:e62e327f9a8ae43e479428"
 };
-const APP_VER='v2.2.0（2026-07-23）';
+const APP_VER='v2.3.0（2026-07-23）';
 document.getElementById('verTag').textContent='版本 '+APP_VER;
 const fbApp = initializeApp(firebaseConfig);
 const db = getFirestore(fbApp);
@@ -464,6 +475,7 @@ function watchEvents(){
         if(!$('manageView').classList.contains('hide')) renderManage();
       });
     });
+    if(typeof syncEventSettings==='function') syncEventSettings();
     renderSignup();
     if(!$('manageView').classList.contains('hide')) renderManage();
   }, e=>{ console.error(e); toast('❌ 讀取打球日失敗：'+e.message); });
@@ -561,6 +573,7 @@ async function renderManage(){
     <button class="${manageTab==='events'?'on':''}" onclick="setManageTab('events')">📅 打球日</button>
     <button class="${manageTab==='members'?'on':''}" onclick="setManageTab('members')">👥 成員</button>
     <button class="${manageTab==='venues'?'on':''}" onclick="setManageTab('venues')">🏟 球館</button>
+    <button class="${manageTab==='sys'?'on':''}" onclick="setManageTab('sys')">⚙ 系統</button>
   </div>`;
   let body='';
   if(manageTab==='events'){
@@ -582,6 +595,12 @@ async function renderManage(){
         <span class="sub">人數上限</span>
         <input type="number" id="nvCap" value="16" min="4" max="60" style="width:80px;">
       </div>
+      <div class="row">
+        <span class="sub">場地數</span>
+        <select id="nvCourts"><option>1</option><option selected>2</option><option>3</option><option>4</option></select>
+        <span class="sub">等待格</span>
+        <select id="nvSlots"><option>1</option><option selected>2</option><option>3</option><option>4</option></select>
+      </div>
       <div class="row"><input id="nvNote" placeholder="備註（場地編號、費用…）" style="flex:1;"></div>
       <button class="ok" onclick="createPlayday()">建立</button>
     </div>
@@ -594,9 +613,10 @@ async function renderManage(){
         return `<div class="item">
           <span class="nm"><b>${fmtDate(ev.dateStr)}</b> ${esc(ev.startStr||'')}${ev.endStr?'–'+esc(ev.endStr):''}
             ${ev.venueName?`📍${esc(ev.venueName)}`:''}
-            <span class="sub">正取 ${Math.min(list.length,cap)}/${cap}｜候補 ${Math.max(0,list.length-cap)}</span>
+            <span class="sub">正取 ${Math.min(list.length,cap)}/${cap}｜候補 ${Math.max(0,list.length-cap)}｜場地 ${ev.courtCount||2}｜等待格 ${ev.slotCount||2}</span>
             ${pend.length?`<span class="tag t-promo">待通知：${pend.map(s=>esc(s.name)).join('、')}</span>`:''}
           </span>
+          <button class="mini" onclick="openEvSet('${ev.id}')">✎ 設定</button>
           <button class="mini red" onclick="deleteEvent('${ev.id}')">刪除</button>
         </div>`;
       }).join('')||'<div class="sub">尚無打球日</div>'}
@@ -638,6 +658,13 @@ async function renderManage(){
         </div>`).join('')||'<div class="sub">尚無球館，新增後建立打球日時即可選擇</div>'}
     </div>`;
   }
+  if(manageTab==='sys'){
+    body=`<div class="card"><h2>系統設定</h2>
+      <div class="item"><span class="nm">語音播報（開始比賽時唸出場次與球員名單）</span>
+        <button class="mini${voiceOn()?' act':''}" onclick="liveVoice();setManageTab('sys')">${voiceOn()?'🔊 開啟中':'🔇 已關閉'}</button></div>
+      <div class="sub" style="margin-top:8px;">語音播報為各裝置獨立設定，請在球場使用的那台平板上開啟。</div>
+    </div>`;
+  }
   box.innerHTML=tabs+body;
 }
 window.createPlayday = async ()=>{
@@ -645,7 +672,8 @@ window.createPlayday = async ()=>{
   const capacity=parseInt($('nvCap').value)||16, note=$('nvNote').value.trim();
   const venueName=$('nvVenue').value;
   if(!dateStr){ toast('請選日期'); return; }
-  const ok=await safeWrite(()=>addDoc(eventsCol(), {dateStr, startStr, endStr, capacity, note, venueName,
+  const courtCount=parseInt($('nvCourts').value)||2, slotCount=parseInt($('nvSlots').value)||2;
+  const ok=await safeWrite(()=>addDoc(eventsCol(), {dateStr, startStr, endStr, capacity, note, venueName, courtCount, slotCount,
     createdBy:session.me.name, createdAt:serverTimestamp()}), '已建立打球日');
   if(ok) setTimeout(renderManage, 500);
 };
@@ -731,6 +759,7 @@ function watchLive(){
     if(s.exists()) liveState=s.data();
     else { liveState=defaultLive(); if(isMgr()) setDoc(liveDocRef(), liveState); }
     liveSel=null;
+    syncEventSettings();
     if($('liveView') && !$('liveView').classList.contains('hide')) renderLive();
   }, e=>console.error(e));
 }
@@ -929,6 +958,50 @@ function askScore(title,nameA,nameB){
 }
 window.sdBump=(k,d)=>{ sd[k]=Math.min(30,Math.max(0,sd[k]+d)); $('sd'+k.toUpperCase()).textContent=sd[k]; };
 /* ---- 現場設定 ---- */
+function applyCounts(cc,sc){
+  for(let i=cc;i<4;i++){ const m=liveState.courts[i].match;
+    if(m){ [...m.teamA,...m.teamB].forEach(id=>liveState.pool.push({id,since:Date.now()})); liveState.courts[i].match=null; } }
+  liveState.courtCount=cc;
+  for(let i=sc;i<4;i++){ const s=liveState.slots[i];
+    s.p.forEach(x=>{ if(x) liveState.pool.push(x); }); s.p=[null,null,null,null]; }
+  liveState.slotCount=sc;
+  liveState.pool.sort((a,b)=>a.since-b.since);
+  fillAndAdvance();
+}
+// 當日打球日的場地數/等待格設定自動套用到現場（每個打球日只套一次）
+function syncEventSettings(){
+  if(!isMgr() || !liveState) return;
+  const ev=Object.values(eventCache).find(e=>e.dateStr===todayStr());
+  if(!ev || liveState.evApplied===ev.id) return;
+  liveState.evApplied=ev.id;
+  applyCounts(ev.courtCount||2, ev.slotCount||2);
+  saveLive();
+}
+let evSet=null;
+window.openEvSet = evId=>{
+  const ev=eventCache[evId]; if(!ev) return;
+  evSet={id:evId, courts:ev.courtCount||2, slots:ev.slotCount||2, dateStr:ev.dateStr};
+  renderEvSet();
+  $('evsetDlg').classList.add('show');
+};
+function renderEvSet(){
+  $('evsetTitle').textContent=`${fmtDate(evSet.dateStr)} — 場地與等待格`;
+  const segB=(cur,k)=>Array.from({length:4},(_,i)=>`<button class="mini${i+1===cur?' act':''}" onclick="evPick('${k}',${i+1})">${i+1}</button>`).join(' ');
+  $('evsetCourts').innerHTML=segB(evSet.courts,'courts');
+  $('evsetSlots').innerHTML=segB(evSet.slots,'slots');
+}
+window.evPick=(k,n)=>{ evSet[k]=n; renderEvSet(); };
+window.closeEvSet=()=>$('evsetDlg').classList.remove('show');
+window.saveEvSet=async ()=>{
+  await safeWrite(()=>updateDoc(doc(eventsCol(),evSet.id),{courtCount:evSet.courts, slotCount:evSet.slots}),'設定已更新');
+  if(evSet.dateStr===todayStr() && liveState && isMgr()){
+    applyCounts(evSet.courts, evSet.slots);
+    liveState.evApplied=evSet.id;
+    saveLive();                       // 今天的場次即時生效
+  }
+  closeEvSet();
+  setTimeout(renderManage,400);
+};
 window.liveCourtCount = n=>{ if(!isMgr()) return;
   for(let i=n;i<4;i++){ const m=liveState.courts[i].match;
     if(m){ [...m.teamA,...m.teamB].forEach(id=>liveState.pool.push({id,since:Date.now()})); liveState.courts[i].match=null; } }
@@ -962,10 +1035,7 @@ function renderLive(){
   let html='';
   if(mgr){
     html+=`<div class="card"><div class="row">
-      <span class="sub">場地數</span>${seg(st.courtCount,'liveCourtCount')}
-      <span class="sub">等待格</span>${seg(st.slotCount,'liveSlotCount')}
       <button class="mini${st.paused?' red':''}" onclick="livePause()">${st.paused?'▶ 恢復排場':'⏸ 暫停排場'}</button>
-      <button class="mini" onclick="liveVoice()">${voiceOn()?'🔊 語音開':'🔇 語音關'}</button>
       <button class="mini act" onclick="openCheckin()">✅ 簽到</button>
       <button class="mini red" onclick="liveReset()">🌅 結束今天</button>
     </div>
