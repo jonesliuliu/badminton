@@ -281,7 +281,7 @@ const firebaseConfig = {
   messagingSenderId: "223475807993",
   appId: "1:223475807993:web:e62e327f9a8ae43e479428"
 };
-const APP_VER='v2.8.2-beta（2026-07-23）';
+const APP_VER='v2.8.3-beta（2026-07-23）';
 document.getElementById('verTag').textContent='版本 '+APP_VER;
 const fbApp = initializeApp(firebaseConfig);
 const db = getFirestore(fbApp);
@@ -990,7 +990,11 @@ async function syncPlanToEvent(evId, evData){
   const cap=ev.capacity||16;
   let n=0;
   for(const mid of ids){
-    if(list.some(s=>s.memberId===mid)) continue;
+    const exist=list.find(s=>s.memberId===mid);
+    if(exist){
+      if(!exist.plan) await updateDoc(doc(signupsCol(evId), mid), {plan:true});  // 已報名者就地升級月繳（位置不變）
+      continue;
+    }
     const m=membersCache.find(x=>x.id===mid); if(!m) continue;
     const cur=list.length+n;
     await setDoc(doc(signupsCol(evId), mid), {memberId:mid, name:m.name, byId:mid, byName:m.name,
