@@ -43,7 +43,9 @@
   #botbar button{flex:1; background:transparent; color:var(--sub);
     padding:8px 2px calc(10px + env(safe-area-inset-bottom)); font-size:11px; border-radius:0;
     display:flex; flex-direction:column; gap:2px; align-items:center;}
-  #botbar button .ic{font-size:20px;}
+  #botbar button .ic{font-size:20px; display:flex;}
+  .lni{width:18px; height:18px; vertical-align:-3px;}
+  #botbar .ic .lni{width:22px; height:22px;}
   #botbar button.on{color:#fff; background:var(--blue);}
   #botbar button.hide{display:none;}
   #navBack.hide{display:none !important;}
@@ -137,7 +139,7 @@
   <h1>🏸 <span id="teamName"></span></h1>
   <span class="sub" id="whoami"></span>
   <div class="spacer"></div>
-  <button class="hbtn hide" id="navBack" onclick="backToAdmin()">⬅ 總覽</button>
+  <button class="hbtn hide" id="navBack" onclick="backToAdmin()"><svg class="lni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> 總覽</button>
   <div id="evBind" class="hide" style="position:relative;">
     <button class="hbtn" onclick="toggleBindMenu(event)" style="text-align:left;line-height:1.3;padding:6px 14px;">
       <span id="ebLine1" style="font-size:15px;"></span> ▾<br>
@@ -147,13 +149,13 @@
       border:1px solid var(--line);border-radius:12px;min-width:250px;z-index:60;
       box-shadow:0 8px 24px rgba(0,0,0,.5);max-height:60vh;overflow:auto;"></div>
   </div>
-  <button class="hbtn" id="navLive" onclick="showView('live')">🏟 現場</button>
-  <button class="hbtn hide" id="navCheckin" onclick="showView('checkin')">✅ 簽到</button>
+  <button class="hbtn" id="navLive" onclick="showView('live')"><svg class="lni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><line x1="12" y1="5" x2="12" y2="19"/><line x1="3" y1="12" x2="21" y2="12"/></svg> 現場</button>
+  <button class="hbtn hide" id="navCheckin" onclick="showView('checkin')"><svg class="lni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.5 2.5L16 9.5"/></svg> 簽到</button>
   <span id="navDiv" class="hide" style="width:2px;align-self:stretch;margin:6px 4px;background:#475569;border-radius:1px;"></span>
-  <button class="hbtn on" id="navSignup" onclick="showView('signup')">📅 報名</button>
-  <button class="hbtn" id="navRank" onclick="showView('rank')">📊 排行</button>
-  <button class="hbtn hide" id="navManage" onclick="showView('manage')">🛠 管理</button>
-  <button class="hbtn" id="btnPw" onclick="changeMyPw()">🔑 改密碼</button>
+  <button class="hbtn on" id="navSignup" onclick="showView('signup')"><svg class="lni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg> 報名</button>
+  <button class="hbtn" id="navRank" onclick="showView('rank')"><svg class="lni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="20" x2="6" y2="13"/><line x1="12" y1="20" x2="12" y2="5"/><line x1="18" y1="20" x2="18" y2="10"/></svg> 排行</button>
+  <button class="hbtn hide" id="navManage" onclick="showView('manage')"><svg class="lni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="7" x2="20" y2="7"/><circle cx="9" cy="7" r="2.4"/><line x1="4" y1="17" x2="20" y2="17"/><circle cx="15" cy="17" r="2.4"/></svg> 管理</button>
+  <button class="hbtn" id="btnPw" onclick="changeMyPw()"><svg class="lni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="16" r="4"/><path d="M11 13L20 4"/><path d="M16.5 7.5l3 3"/></svg> 改密碼</button>
   <button class="hbtn" onclick="logout()">登出</button>
 </header>
 
@@ -180,18 +182,18 @@
 </main>
 
 <nav id="botbar">
-  <button id="bNavLive" onclick="showView('live')"><span class="ic">🏟</span>現場</button>
-  <button id="bNavCheckin" onclick="showView('checkin')"><span class="ic">✅</span>簽到</button>
-  <button id="bNavSignup" onclick="showView('signup')"><span class="ic">📅</span>報名</button>
-  <button id="bNavRank" onclick="showView('rank')"><span class="ic">📊</span>排行</button>
-  <button id="bNavManage" class="hide" onclick="showView('manage')"><span class="ic">🛠</span>管理</button>
-  <button onclick="openMore()"><span class="ic">⋯</span>更多</button>
+  <button id="bNavLive" onclick="showView('live')"><span class="ic"><svg class="lni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><line x1="12" y1="5" x2="12" y2="19"/><line x1="3" y1="12" x2="21" y2="12"/></svg></span>現場</button>
+  <button id="bNavCheckin" onclick="showView('checkin')"><span class="ic"><svg class="lni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.5 2.5L16 9.5"/></svg></span>簽到</button>
+  <button id="bNavSignup" onclick="showView('signup')"><span class="ic"><svg class="lni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg></span>報名</button>
+  <button id="bNavRank" onclick="showView('rank')"><span class="ic"><svg class="lni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="20" x2="6" y2="13"/><line x1="12" y1="20" x2="12" y2="5"/><line x1="18" y1="20" x2="18" y2="10"/></svg></span>排行</button>
+  <button id="bNavManage" class="hide" onclick="showView('manage')"><span class="ic"><svg class="lni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="7" x2="20" y2="7"/><circle cx="9" cy="7" r="2.4"/><line x1="4" y1="17" x2="20" y2="17"/><circle cx="15" cy="17" r="2.4"/></svg></span>管理</button>
+  <button onclick="openMore()"><span class="ic"><svg class="lni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg></span>更多</button>
 </nav>
 
 <div class="overlay" id="moreDlg">
   <div class="dlgbox" style="max-width:340px;">
     <div class="dlgbtns" style="flex-direction:column;margin-top:0;">
-      <button class="cancel" onclick="closeMore();changeMyPw()">🔑 改密碼</button>
+      <button class="cancel" onclick="closeMore();changeMyPw()"><svg class="lni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="16" r="4"/><path d="M11 13L20 4"/><path d="M16.5 7.5l3 3"/></svg> 改密碼</button>
       <button class="danger" onclick="logout()">登出</button>
       <button class="cancel" onclick="closeMore()">關閉</button>
     </div>
@@ -263,7 +265,7 @@ const firebaseConfig = {
   messagingSenderId: "223475807993",
   appId: "1:223475807993:web:e62e327f9a8ae43e479428"
 };
-const APP_VER='v2.6.1-beta（2026-07-23）';
+const APP_VER='v2.6.2-beta（2026-07-23）';
 document.getElementById('verTag').textContent='版本 '+APP_VER;
 const fbApp = initializeApp(firebaseConfig);
 const db = getFirestore(fbApp);
@@ -1384,8 +1386,7 @@ function renderLive(){
   html+='</div>';
   if(mgr){
     html+=`<div class="card">
-      <div class="sub">💡 按住名字約半秒即可拖曳：拖到另一人＝互換、拖到空位＝移入遞補；也可以點兩位球員互換</div>
-      <div class="row" style="margin-top:12px;">
+      <div class="row">
         <button class="danger" style="flex:1;padding:14px;font-size:17px;" onclick="liveReset()">🌅 結束今天（清空現場名單）</button>
       </div>
     </div>`;
