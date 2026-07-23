@@ -12,15 +12,19 @@
     --blue:#3b82f6; --amber:#f59e0b; --teal:#14b8a6;
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
-  body{margin:0; font-family:-apple-system,"PingFang TC","Noto Sans TC",sans-serif; background:var(--bg); color:var(--txt); min-height:100vh;}
+  html,body{height:100%;}
+  body{margin:0; font-family:-apple-system,"PingFang TC","Noto Sans TC",sans-serif; background:var(--bg); color:var(--txt);
+    display:flex; flex-direction:column; overflow:hidden;}
   button{font-family:inherit; border:none; border-radius:12px; cursor:pointer; color:#fff; font-size:16px;}
   input,select,textarea{font-family:inherit; background:var(--panel2); border:1px solid var(--line); border-radius:10px; color:var(--txt); font-size:16px; padding:10px;}
-  header{display:flex; align-items:center; gap:10px; padding:calc(10px + env(safe-area-inset-top)) 16px 10px; background:var(--panel); border-bottom:1px solid var(--line); flex-wrap:wrap; position:fixed; top:0; left:0; right:0; z-index:44;}
+  header{display:flex; align-items:center; gap:10px; padding:calc(10px + env(safe-area-inset-top)) 16px 10px; background:var(--panel); border-bottom:1px solid var(--line); flex-wrap:wrap; flex:0 0 auto; z-index:44;}
   header h1{font-size:19px; margin:0;}
   .spacer{flex:1;}
   .hbtn{padding:10px 16px; background:var(--panel2);}
   .hbtn.on{background:var(--blue);}
-  main{padding:14px; max-width:1000px; margin:0 auto;}
+  main{flex:1 1 auto; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:14px; width:100%;}
+  main>div{max-width:1000px; margin:0 auto;}
+  #loginView{flex:1 1 auto; overflow-y:auto; align-self:center; width:100%;}
   /* 球場看板 */
   #courtsWrap{display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:12px;}
   .courtboard{background:var(--panel2); border:1px solid var(--line); border-radius:14px; padding:12px;}
@@ -351,13 +355,10 @@ const firebaseConfig = {
   messagingSenderId: "223475807993",
   appId: "1:223475807993:web:e62e327f9a8ae43e479428"
 };
-const APP_VER='v2.8.6（2026-07-23）';
+const APP_VER='v2.8.7（2026-07-23）';
 try{ history.scrollRestoration='manual'; }catch(e){}
-// 標題列為固定式：即時量測高度，內容區永遠從其下方開始
-const _hdr=document.getElementById('topbar');
-function fitHeader(){ document.body.style.paddingTop=(_hdr.classList.contains('hide')?0:_hdr.offsetHeight)+'px'; }
-new ResizeObserver(fitHeader).observe(_hdr);
-window.addEventListener('resize', fitHeader);
+function fitHeader(){}
+function resetScroll(){ const m=document.getElementById('appView'); if(m) m.scrollTop=0; window.scrollTo(0,0); }
 document.getElementById('verTag').textContent='版本 '+APP_VER;
 const fbApp = initializeApp(firebaseConfig);
 const db = getFirestore(fbApp);
@@ -513,9 +514,8 @@ window.logout = ()=>{
 /* ---------- 主畫面 ---------- */
 async function enterApp(){
   try{ if(document.activeElement) document.activeElement.blur(); }catch(e){}   // 收起鍵盤
-  window.scrollTo(0,0);
-  setTimeout(()=>window.scrollTo(0,0),150);   // iOS 收鍵盤後會殘留捲動位置，補打回頂部
-  setTimeout(()=>window.scrollTo(0,0),500);
+  resetScroll();
+  setTimeout(resetScroll,200);
   $('loginView').classList.add('hide');
   $('topbar').classList.remove('hide');
   $('appView').classList.remove('hide');
@@ -658,7 +658,7 @@ window.closeMore=()=>$('moreDlg').classList.remove('show');
 let currentView='signup';
 window.showView = v=>{
   currentView=v;
-  window.scrollTo(0,0);
+  resetScroll();
   ['signup','checkin','live','rank','manage'].forEach(x=>{
     const el=$(x+'View'); if(el) el.classList.toggle('hide', v!==x);
     const nb=$('nav'+x[0].toUpperCase()+x.slice(1)); if(nb) nb.classList.toggle('on', v===x);
@@ -707,7 +707,7 @@ let expandedEvs=new Set();
 window.evToggle=id=>{ expandedEvs.has(id)?expandedEvs.delete(id):expandedEvs.add(id); renderSignup(); };
 window.evCardTap=(e,id)=>{ if(e.target.closest('button,select')) return; evToggle(id); };
 function renderSignup(){
-  if(needTopReset && Object.keys(eventCache).length){ needTopReset=false; setTimeout(()=>window.scrollTo(0,0),50); }
+  if(needTopReset && Object.keys(eventCache).length){ needTopReset=false; setTimeout(resetScroll,50); }
   const evs=Object.values(eventCache).sort((a,b)=>a.dateStr.localeCompare(b.dateStr));
   const box=$('signupView');
   if(!evs.length){
