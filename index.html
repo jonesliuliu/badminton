@@ -99,6 +99,7 @@
     <button class="ok full" onclick="doLogin()">登入</button>
     <div class="sub" style="text-align:center;margin-top:12px;">忘記密碼？請洽你的球隊管理者重設</div>
   </div>
+  <div class="sub" style="text-align:center;" id="verTag"></div>
 </div>
 
 <main id="appView" class="hide">
@@ -133,6 +134,8 @@ const firebaseConfig = {
   messagingSenderId: "223475807993",
   appId: "1:223475807993:web:e62e327f9a8ae43e479428"
 };
+const APP_VER='v2.1.0（2026-07-23）';
+document.getElementById('verTag').textContent='版本 '+APP_VER;
 const fbApp = initializeApp(firebaseConfig);
 const db = getFirestore(fbApp);
 const auth = getAuth(fbApp);
