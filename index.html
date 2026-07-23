@@ -201,7 +201,7 @@ const firebaseConfig = {
   messagingSenderId: "223475807993",
   appId: "1:223475807993:web:e62e327f9a8ae43e479428"
 };
-const APP_VER='v2.4.4（2026-07-23）';
+const APP_VER='v2.4.5（2026-07-23）';
 document.getElementById('verTag').textContent='版本 '+APP_VER;
 const fbApp = initializeApp(firebaseConfig);
 const db = getFirestore(fbApp);
@@ -1233,6 +1233,7 @@ function renderCheckin(){
     return `<div class="item">
       <span class="num">${i+1}</span>
       <span class="nm" style="font-size:18px;">${esc(s.name)}</span>
+      ${s.initialStatus==='wait'?'<span class="tag t-promo">候補轉正</span>':''}
       ${here?'<span class="tag t-main">✓ 已簽到</span>':''}
       ${canDo?`<button class="ok" style="padding:8px 22px;" onclick="liveCheckIn('${s.memberId}')">簽到</button>`:''}
     </div>`;
