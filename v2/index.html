@@ -269,7 +269,7 @@ const firebaseConfig = {
   messagingSenderId: "223475807993",
   appId: "1:223475807993:web:e62e327f9a8ae43e479428"
 };
-const APP_VER='v2.6.7-beta（2026-07-23）';
+const APP_VER='v2.6.8-beta（2026-07-23）';
 document.getElementById('verTag').textContent='版本 '+APP_VER;
 const fbApp = initializeApp(firebaseConfig);
 const db = getFirestore(fbApp);
@@ -308,6 +308,11 @@ document.addEventListener('keydown',e=>{
      && !document.getElementById('dlgInput').classList.contains('hide')) document.getElementById('dlgOk').click();
 });
 function todayStr(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function fmtTs(ts){
+  if(!ts||!ts.toDate) return '—';
+  const d=ts.toDate();
+  return (d.getMonth()+1)+'/'+d.getDate()+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+}
 function fmtDate(s){
   const [y,m,d]=s.split('-').map(Number);
   const w=['日','一','二','三','四','五','六'][new Date(y,m-1,d).getDay()];
@@ -354,6 +359,7 @@ onAuthStateChanged(auth, async user=>{
     const mDoc = await getDoc(doc(db,'teams',saved.teamId,'members',saved.me.id));
     if(mDoc.exists()){
       session={...saved, me:{id:mDoc.id, name:mDoc.data().name, role:mDoc.data().role}};
+      updateDoc(doc(db,'teams',saved.teamId,'members',mDoc.id),{lastLogin:serverTimestamp()}).catch(()=>{});
       enterApp(); return;
     }
   }
@@ -402,6 +408,7 @@ window.doLogin = async ()=>{
     session={ teamId:tid, teamName:teams.find(t=>t.id===tid).name,
               me:{id:d.id, name:d.data().name, role:d.data().role} };
     localStorage.setItem('bm2_session', JSON.stringify(session));
+    updateDoc(doc(db,'teams',tid,'members',d.id),{lastLogin:serverTimestamp()}).catch(()=>{});
     $('loginPw').value=''; $('loginName').value='';
     enterApp();
   }catch(e){ toast('❌ 登入失敗：'+e.message); }
@@ -775,7 +782,7 @@ async function renderManage(){
       ${membersCache.map(m=>`
         <div class="item">
           <span class="nm">${esc(m.name)} ${m.role==='manager'?'<span class="tag t-mgr">管理者</span>':''}</span>
-          <span class="sub">積分 ${m.elo??1500}</span>
+          <span class="sub">積分 ${m.elo??1500}｜最後登入 ${fmtTs(m.lastLogin)}</span>
           <button class="mini" onclick="toggleRole('${m.id}')">${m.role==='manager'?'降為球友':'升為管理者'}</button>
           <button class="mini" onclick="resetPw('${m.id}','${esc(m.name)}')">重設密碼</button>
           <button class="mini red" onclick="delMember('${m.id}','${esc(m.name)}')">刪除</button>
