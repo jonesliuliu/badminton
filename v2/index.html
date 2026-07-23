@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>羽球球隊系統 v2</title>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#1e293b; --panel2:#273549; --line:#334155;
+    --txt:#f1f5f9; --sub:#94a3b8; --green:#22c55e; --red:#ef4444;
+    --blue:#3b82f6; --amber:#f59e0b; --teal:#14b8a6;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  body{margin:0; font-family:-apple-system,"PingFang TC","Noto Sans TC",sans-serif; background:var(--bg); color:var(--txt); min-height:100vh;}
+  button{font-family:inherit; border:none; border-radius:12px; cursor:pointer; color:#fff; font-size:16px;}
+  input,select,textarea{font-family:inherit; background:var(--panel2); border:1px solid var(--line); border-radius:10px; color:var(--txt); font-size:16px; padding:10px;}
+  header{display:flex; align-items:center; gap:10px; padding:10px 16px; background:var(--panel); border-bottom:1px solid var(--line); flex-wrap:wrap; position:sticky; top:0; z-index:5;}
+  header h1{font-size:19px; margin:0;}
+  .spacer{flex:1;}
+  .hbtn{padding:10px 16px; background:var(--panel2);}
+  .hbtn.on{background:var(--blue);}
+  main{padding:14px; max-width:760px; margin:0 auto;}
+  .card{background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:14px; margin-bottom:14px;}
+  .card h2{margin:0 0 10px; font-size:17px;}
+  .sub{color:var(--sub); font-size:13px;}
+  .row{display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin:8px 0;}
+  .ok{background:var(--green); font-weight:700; padding:12px 18px;}
+  .pri{background:var(--blue); padding:12px 18px;}
+  .warnb{background:var(--amber); color:#111; padding:12px 18px;}
+  .danger{background:var(--red); padding:10px 14px;}
+  .cancel{background:var(--panel2); color:var(--sub); padding:12px 18px;}
+  .mini{padding:7px 12px; font-size:13px; background:var(--panel2); color:var(--sub); border-radius:10px;}
+  .mini.act{background:var(--teal); color:#fff;}
+  .mini.red{background:var(--red); color:#fff;}
+  .tag{font-size:12px; padding:2px 10px; border-radius:10px; white-space:nowrap;}
+  .t-main{background:#14532d; color:#86efac;}
+  .t-wait{background:#78350f; color:#fcd34d;}
+  .t-promo{background:var(--amber); color:#111; font-weight:700;}
+  .t-ok{background:#1e3a8a; color:#93c5fd;}
+  .t-mgr{background:#4c1d95; color:#ddd6fe;}
+  .item{display:flex; align-items:center; gap:8px; padding:8px 0; border-bottom:1px solid var(--line); font-size:16px; flex-wrap:wrap;}
+  .item:last-child{border-bottom:none;}
+  .item .num{color:var(--sub); width:24px;}
+  .item .nm{flex:1; min-width:80px;}
+  .evhead{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
+  .evdate{font-size:20px; font-weight:800;}
+  .evtime{color:var(--teal); font-size:16px; font-weight:600;}
+  .cnt{color:var(--sub); font-size:14px;}
+  .divider{border-top:1px solid var(--line); margin:10px 0; padding-top:8px; color:var(--sub); font-size:14px;}
+  .center{max-width:420px; margin:40px auto; padding:0 16px;}
+  .center .card{padding:22px;}
+  .center h1{text-align:center; font-size:24px;}
+  .field{margin:10px 0;}
+  .field label{display:block; color:var(--sub); font-size:14px; margin-bottom:4px;}
+  .field input,.field select{width:100%;}
+  .full{width:100%; padding:14px; font-size:18px;}
+  .link{color:var(--blue); text-align:center; margin-top:12px; cursor:pointer; font-size:14px;}
+  .notice{background:#78350f; border-radius:10px; padding:10px 12px; margin:10px 0; color:#fde68a; font-size:14px;}
+  .hide{display:none;}
+  #toast{position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:#000; color:#fff;
+    padding:12px 22px; border-radius:24px; font-size:15px; opacity:0; transition:opacity .3s; z-index:99; pointer-events:none;}
+  #toast.show{opacity:.92;}
+</style>
+</head>
+<body>
+
+<header id="topbar" class="hide">
+  <h1>🏸 <span id="teamName"></span></h1>
+  <span class="sub" id="whoami"></span>
+  <div class="spacer"></div>
+  <button class="hbtn on" id="navSignup" onclick="showView('signup')">📅 報名</button>
+  <button class="hbtn hide" id="navManage" onclick="showView('manage')">🛠 管理</button>
+  <button class="hbtn" onclick="logout()">登出</button>
+</header>
+
+<!-- 登入 -->
+<div class="center" id="loginView">
+  <h1>🏸 羽球球隊系統</h1>
+  <div class="card">
+    <div class="field"><label>球隊</label><select id="loginTeam"></select></div>
+    <div class="field"><label>你的名字</label><select id="loginMember"></select></div>
+    <div class="field"><label>密碼</label><input type="password" id="loginPw" placeholder="輸入密碼"></div>
+    <button class="ok full" onclick="doLogin()">登入</button>
+    <div class="link" onclick="toggleCreateTeam()">建立新球隊</div>
+  </div>
+  <div class="card hide" id="createTeamCard">
+    <h2>建立新球隊</h2>
+    <div class="field"><label>球隊名稱</label><input id="ctName" placeholder="例：週三羽球團"></div>
+    <div class="field"><label>管理者姓名</label><input id="ctMgr" placeholder="你的名字"></div>
+    <div class="field"><label>管理者密碼</label><input type="password" id="ctPw"></div>
+    <button class="pri full" onclick="createTeam()">建立並登入</button>
+  </div>
+</div>
+
+<main id="appView" class="hide">
+  <!-- 報名頁 -->
+  <div id="signupView"></div>
+  <!-- 管理頁 -->
+  <div id="manageView" class="hide"></div>
+</main>
+
+<div id="toast"></div>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getAuth, signInAnonymously, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import { getFirestore, collection, doc, addDoc, setDoc, getDoc, getDocs, deleteDoc, updateDoc,
+         onSnapshot, query, orderBy, where, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBcc4P8YePX2xS5sMTlNpf3TYQkTwTroNo",
+  authDomain: "badminton-f9063.firebaseapp.com",
+  projectId: "badminton-f9063",
+  storageBucket: "badminton-f9063.firebasestorage.app",
+  messagingSenderId: "223475807993",
+  appId: "1:223475807993:web:e62e327f9a8ae43e479428"
+};
+const fbApp = initializeApp(firebaseConfig);
+const db = getFirestore(fbApp);
+const auth = getAuth(fbApp);
+
+/* ---------- 共用 ---------- */
+const $ = id => document.getElementById(id);
+const esc = s => String(s??'').replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function hash(s){ let h=5381; for(const c of s){ h=((h<<5)+h+c.charCodeAt(0))>>>0; } return h.toString(16); }
+function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2200); }
+function todayStr(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function fmtDate(s){ // 2026-07-30 → 7/30（週四）
+  const [y,m,d]=s.split('-').map(Number);
+  const w=['日','一','二','三','四','五','六'][new Date(y,m-1,d).getDay()];
+  return `${m}/${d}（週${w}）`;
+}
+
+/* ---------- 狀態 ---------- */
+let session = null;   // {teamId, teamName, me:{id,name,role}}
+let teams = [];       // [{id,name}]
+let membersCache = [];// 目前球隊成員
+let unsubEvents = null;
+const signupUnsubs = {};   // eventId -> unsub
+const signupCache = {};    // eventId -> [signup]
+const eventCache = {};     // eventId -> event data
+
+const membersCol = () => collection(db,'teams',session.teamId,'members');
+const eventsCol  = () => collection(db,'teams',session.teamId,'events');
+const signupsCol = ev => collection(db,'teams',session.teamId,'events',ev,'signups');
+
+/* ---------- 啟動 ---------- */
+signInAnonymously(auth).catch(e=>{ alert('無法連線資料庫，請確認網路。\n'+e.message); });
+onAuthStateChanged(auth, async user=>{
+  if(!user) return;
+  await loadTeams();
+  const saved = JSON.parse(localStorage.getItem('bm2_session')||'null');
+  if(saved && teams.some(t=>t.id===saved.teamId)){
+    // 重新驗證成員仍存在
+    const mDoc = await getDoc(doc(db,'teams',saved.teamId,'members',saved.me.id));
+    if(mDoc.exists()){
+      session={...saved, me:{id:mDoc.id, name:mDoc.data().name, role:mDoc.data().role}};
+      enterApp(); return;
+    }
+  }
+  renderLogin();
+});
+
+async function loadTeams(){
+  const snap = await getDocs(collection(db,'teams'));
+  teams = snap.docs.map(d=>({id:d.id, name:d.data().name}));
+}
+
+/* ---------- 登入畫面 ---------- */
+async function renderLogin(){
+  $('loginView').classList.remove('hide');
+  $('topbar').classList.add('hide');
+  $('appView').classList.add('hide');
+  const sel=$('loginTeam');
+  sel.innerHTML = teams.length
+    ? teams.map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join('')
+    : '<option value="">（尚無球隊，請先建立）</option>';
+  sel.onchange = loadLoginMembers;
+  await loadLoginMembers();
+}
+async function loadLoginMembers(){
+  const tid=$('loginTeam').value;
+  const msel=$('loginMember');
+  if(!tid){ msel.innerHTML='<option value="">—</option>'; return; }
+  const snap=await getDocs(collection(db,'teams',tid,'members'));
+  const ms=snap.docs.map(d=>({id:d.id, name:d.data().name}))
+    .sort((a,b)=>a.name.localeCompare(b.name,'zh-Hant'));
+  msel.innerHTML = ms.map(m=>`<option value="${m.id}">${esc(m.name)}</option>`).join('');
+}
+window.toggleCreateTeam = ()=> $('createTeamCard').classList.toggle('hide');
+window.doLogin = async ()=>{
+  const tid=$('loginTeam').value, mid=$('loginMember').value, pw=$('loginPw').value;
+  if(!tid||!mid){ toast('請選擇球隊與名字'); return; }
+  const mDoc=await getDoc(doc(db,'teams',tid,'members',mid));
+  if(!mDoc.exists()){ toast('找不到成員'); return; }
+  if(mDoc.data().hash!==hash(pw)){ toast('密碼錯誤'); return; }
+  session={ teamId:tid, teamName:teams.find(t=>t.id===tid).name,
+            me:{id:mid, name:mDoc.data().name, role:mDoc.data().role} };
+  localStorage.setItem('bm2_session', JSON.stringify(session));
+  $('loginPw').value='';
+  enterApp();
+};
+window.createTeam = async ()=>{
+  const name=$('ctName').value.trim(), mgr=$('ctMgr').value.trim(), pw=$('ctPw').value;
+  if(!name||!mgr||!pw){ toast('請填完整'); return; }
+  if(teams.some(t=>t.name===name)){ toast('球隊名稱已存在'); return; }
+  const tRef=await addDoc(collection(db,'teams'),{name, createdAt:serverTimestamp()});
+  const mRef=await addDoc(collection(db,'teams',tRef.id,'members'),
+    {name:mgr, hash:hash(pw), role:'manager', elo:1500, wins:0, losses:0, matches:0, createdAt:serverTimestamp()});
+  session={teamId:tRef.id, teamName:name, me:{id:mRef.id, name:mgr, role:'manager'}};
+  localStorage.setItem('bm2_session', JSON.stringify(session));
+  enterApp();
+};
+window.logout = ()=>{
+  localStorage.removeItem('bm2_session');
+  if(unsubEvents) unsubEvents();
+  Object.values(signupUnsubs).forEach(u=>u());
+  location.reload();
+};
+
+/* ---------- 主畫面 ---------- */
+async function enterApp(){
+  $('loginView').classList.add('hide');
+  $('topbar').classList.remove('hide');
+  $('appView').classList.remove('hide');
+  $('teamName').textContent=session.teamName;
+  $('whoami').textContent=`${session.me.name}${session.me.role==='manager'?'（管理者）':''}`;
+  $('navManage').classList.toggle('hide', session.me.role!=='manager');
+  await refreshMembers();
+  watchEvents();
+  showView('signup');
+}
+async function refreshMembers(){
+  const snap=await getDocs(membersCol());
+  membersCache=snap.docs.map(d=>({id:d.id, ...d.data()}))
+    .sort((a,b)=>a.name.localeCompare(b.name,'zh-Hant'));
+}
+window.showView = v=>{
+  $('signupView').classList.toggle('hide', v!=='signup');
+  $('manageView').classList.toggle('hide', v!=='manage');
+  $('navSignup').classList.toggle('on', v==='signup');
+  $('navManage').classList.toggle('on', v==='manage');
+  if(v==='manage') renderManage();
+};
+
+/* ---------- 打球日（即時監聽） ---------- */
+function watchEvents(){
+  if(unsubEvents) unsubEvents();
+  const q=query(eventsCol(), where('dateStr','>=',todayStr()), orderBy('dateStr'));
+  unsubEvents=onSnapshot(q, snap=>{
+    const ids=new Set();
+    snap.docs.forEach(d=>{ ids.add(d.id); eventCache[d.id]={id:d.id, ...d.data()}; });
+    // 移除過期監聽
+    Object.keys(signupUnsubs).forEach(id=>{
+      if(!ids.has(id)){ signupUnsubs[id](); delete signupUnsubs[id]; delete signupCache[id]; delete eventCache[id]; }
+    });
+    // 為每個打球日監聽報名名單
+    snap.docs.forEach(d=>{
+      if(signupUnsubs[d.id]) return;
+      signupUnsubs[d.id]=onSnapshot(query(signupsCol(d.id), orderBy('at')), s=>{
+        signupCache[d.id]=s.docs.map(x=>({id:x.id, ...x.data()}));
+        renderSignup();
+      });
+    });
+    renderSignup();
+  }, e=>{ console.error(e); toast('讀取打球日失敗'); });
+}
+
+/* ---------- 報名頁 ---------- */
+function renderSignup(){
+  const evs=Object.values(eventCache).sort((a,b)=>a.dateStr.localeCompare(b.dateStr));
+  const box=$('signupView');
+  if(!evs.length){
+    box.innerHTML='<div class="card"><div class="sub">目前沒有開放報名的打球日'+(session.me.role==='manager'?'，請到「🛠 管理」建立':'')+'</div></div>';
+    return;
+  }
+  box.innerHTML=evs.map(ev=>{
+    const list=signupCache[ev.id]||[];
+    const cap=ev.capacity||16;
+    const main=list.slice(0,cap), wait=list.slice(cap);
+    const mine=list.find(s=>s.memberId===session.me.id);
+    const myIdx=list.findIndex(s=>s.memberId===session.me.id);
+    const isMgr=session.me.role==='manager';
+    // 名單 HTML
+    const row=(s,i,isWait)=>{
+      const promoted=!isWait && s.initialStatus==='wait';
+      const canCancel=isMgr || s.memberId===session.me.id || s.byId===session.me.id;
+      const canConfirm=promoted && !s.confirmed && (isMgr || s.memberId===session.me.id);
+      return `<div class="item">
+        <span class="num">${i+1}</span><span class="nm">${esc(s.name)}${s.byId!==s.memberId?`<span class="sub">（${esc(s.byName)}代報）</span>`:''}</span>
+        ${isWait?'<span class="tag t-wait">候補</span>':''}
+        ${promoted?(s.confirmed?'<span class="tag t-ok">轉正・已確認</span>':'<span class="tag t-promo">候補轉正・未確認</span>'):''}
+        ${canConfirm?`<button class="mini act" onclick="confirmSignup('${ev.id}','${s.id}')">確認報到</button>`:''}
+        ${canCancel?`<button class="mini red" onclick="cancelSignup('${ev.id}','${s.id}','${esc(s.name)}')">取消</button>`:''}
+      </div>`;
+    };
+    // 代報下拉：尚未報名的成員
+    const notSigned=membersCache.filter(m=>!list.some(s=>s.memberId===m.id));
+    const proxySel=notSigned.length?`
+      <div class="row">
+        <select id="proxy_${ev.id}">${notSigned.map(m=>`<option value="${m.id}">${esc(m.name)}</option>`).join('')}</select>
+        <button class="mini act" onclick="proxySignup('${ev.id}')">代報名</button>
+      </div>`:'';
+    const myStatus = !mine ? '' :
+      (myIdx<cap ? (mine.initialStatus==='wait' ? '<div class="notice">你已從候補轉為正取！請按「確認報到」</div>'
+                                                : '')
+                 : '<div class="notice">你目前在候補名單，若有人取消將依序遞補</div>');
+    return `<div class="card">
+      <div class="evhead">
+        <span class="evdate">${fmtDate(ev.dateStr)}</span>
+        <span class="evtime">${esc(ev.startStr||'')}${ev.endStr?'–'+esc(ev.endStr):''}</span>
+        <span class="cnt">正取 ${main.length}/${cap}｜候補 ${wait.length}</span>
+        <div class="spacer"></div>
+        ${mine
+          ? `<button class="cancel" onclick="cancelSignup('${ev.id}','${mine.id}','${esc(session.me.name)}')">取消報名</button>`
+          : `<button class="ok" onclick="signupSelf('${ev.id}')">報名</button>`}
+      </div>
+      ${ev.note?`<div class="sub" style="margin-top:6px;">${esc(ev.note)}</div>`:''}
+      ${myStatus}
+      <div class="divider">正取名單</div>
+      ${main.map((s,i)=>row(s,i,false)).join('')||'<div class="sub">尚無人報名</div>'}
+      ${wait.length?`<div class="divider">候補名單</div>${wait.map((s,i)=>row(s,i,true)).join('')}`:''}
+      ${proxySel}
+    </div>`;
+  }).join('');
+}
+async function addSignup(evId, member){
+  const list=signupCache[evId]||[];
+  if(list.some(s=>s.memberId===member.id)){ toast('已報名過'); return; }
+  const cap=(eventCache[evId]&&eventCache[evId].capacity)||16;
+  const initialStatus = list.length>=cap ? 'wait' : 'main';
+  await setDoc(doc(signupsCol(evId), member.id), {
+    memberId:member.id, name:member.name,
+    byId:session.me.id, byName:session.me.name,
+    at:serverTimestamp(), initialStatus, confirmed:false
+  });
+  toast(initialStatus==='wait'?`${member.name} 已列入候補`:`${member.name} 報名成功`);
+}
+window.signupSelf = evId => addSignup(evId, {id:session.me.id, name:session.me.name});
+window.proxySignup = async evId=>{
+  const mid=$('proxy_'+evId).value;
+  const m=membersCache.find(x=>x.id===mid);
+  if(m) await addSignup(evId, m);
+};
+window.cancelSignup = async (evId, sid, name)=>{
+  if(!confirm(`取消「${name}」的報名？`)) return;
+  await deleteDoc(doc(signupsCol(evId), sid));
+  toast('已取消');
+};
+window.confirmSignup = async (evId, sid)=>{
+  await updateDoc(doc(signupsCol(evId), sid), {confirmed:true, confirmedAt:serverTimestamp()});
+  toast('已確認報到');
+};
+
+/* ---------- 管理頁 ---------- */
+async function renderManage(){
+  await refreshMembers();
+  const box=$('manageView');
+  const evs=Object.values(eventCache).sort((a,b)=>a.dateStr.localeCompare(b.dateStr));
+  box.innerHTML=`
+  <div class="card">
+    <h2>建立打球日</h2>
+    <div class="row">
+      <input type="date" id="nvDate" min="${todayStr()}">
+      <input type="time" id="nvStart" value="19:00">
+      <span class="sub">到</span>
+      <input type="time" id="nvEnd" value="21:00">
+    </div>
+    <div class="row">
+      <span class="sub">人數上限</span>
+      <input type="number" id="nvCap" value="16" min="4" max="60" style="width:80px;">
+      <input id="nvNote" placeholder="備註（球館、場地…）" style="flex:1;min-width:160px;">
+    </div>
+    <button class="ok" onclick="createEvent()">建立</button>
+  </div>
+  <div class="card">
+    <h2>打球日管理</h2>
+    ${evs.map(ev=>{
+      const list=signupCache[ev.id]||[];
+      const cap=ev.capacity||16;
+      const pend=list.slice(0,cap).filter(s=>s.initialStatus==='wait'&&!s.confirmed);
+      return `<div class="item">
+        <span class="nm"><b>${fmtDate(ev.dateStr)}</b> ${esc(ev.startStr||'')}${ev.endStr?'–'+esc(ev.endStr):''}
+          <span class="sub">正取 ${Math.min(list.length,cap)}/${cap}｜候補 ${Math.max(0,list.length-cap)}</span>
+          ${pend.length?`<span class="tag t-promo">待通知：${pend.map(s=>esc(s.name)).join('、')}</span>`:''}
+        </span>
+        <button class="mini red" onclick="deleteEvent('${ev.id}')">刪除</button>
+      </div>`;
+    }).join('')||'<div class="sub">尚無打球日</div>'}
+  </div>
+  <div class="card">
+    <h2>成員管理</h2>
+    <div class="row">
+      <input id="nmName" placeholder="姓名" style="width:110px;">
+      <input id="nmPw" placeholder="密碼" style="width:110px;">
+      <select id="nmRole"><option value="member">球友</option><option value="manager">管理者</option></select>
+      <button class="ok" onclick="addMember()">新增</button>
+    </div>
+    ${membersCache.map(m=>`
+      <div class="item">
+        <span class="nm">${esc(m.name)} ${m.role==='manager'?'<span class="tag t-mgr">管理者</span>':''}</span>
+        <span class="sub">積分 ${m.elo??1500}</span>
+        <button class="mini" onclick="toggleRole('${m.id}')">${m.role==='manager'?'降為球友':'升為管理者'}</button>
+        <button class="mini" onclick="resetPw('${m.id}','${esc(m.name)}')">重設密碼</button>
+        <button class="mini red" onclick="delMember('${m.id}','${esc(m.name)}')">刪除</button>
+      </div>`).join('')}
+  </div>`;
+}
+window.createEvent = async ()=>{
+  const dateStr=$('nvDate').value, startStr=$('nvStart').value, endStr=$('nvEnd').value;
+  const capacity=parseInt($('nvCap').value)||16, note=$('nvNote').value.trim();
+  if(!dateStr){ toast('請選日期'); return; }
+  await addDoc(eventsCol(), {dateStr, startStr, endStr, capacity, note,
+    createdBy:session.me.name, createdAt:serverTimestamp()});
+  toast('已建立打球日');
+  setTimeout(renderManage, 400);
+};
+window.deleteEvent = async evId=>{
+  const list=signupCache[evId]||[];
+  if(!confirm(`刪除這個打球日？${list.length?`（已有 ${list.length} 人報名）`:''}`)) return;
+  for(const s of list) await deleteDoc(doc(signupsCol(evId), s.id));
+  await deleteDoc(doc(eventsCol(), evId));
+  toast('已刪除');
+  setTimeout(renderManage, 400);
+};
+window.addMember = async ()=>{
+  const name=$('nmName').value.trim(), pw=$('nmPw').value, role=$('nmRole').value;
+  if(!name||!pw){ toast('請填姓名與密碼'); return; }
+  if(membersCache.some(m=>m.name===name)){ toast('姓名重複'); return; }
+  await addDoc(membersCol(), {name, hash:hash(pw), role, elo:1500, wins:0, losses:0, matches:0, createdAt:serverTimestamp()});
+  $('nmName').value=''; $('nmPw').value='';
+  toast('已新增 '+name);
+  renderManage();
+};
+window.toggleRole = async mid=>{
+  const m=membersCache.find(x=>x.id===mid);
+  if(m.id===session.me.id && m.role==='manager' &&
+     membersCache.filter(x=>x.role==='manager').length===1){ toast('至少要保留一位管理者'); return; }
+  await updateDoc(doc(membersCol(), mid), {role: m.role==='manager'?'member':'manager'});
+  renderManage();
+};
+window.resetPw = async (mid,name)=>{
+  const pw=prompt(`輸入「${name}」的新密碼：`);
+  if(!pw) return;
+  await updateDoc(doc(membersCol(), mid), {hash:hash(pw)});
+  toast('密碼已更新');
+};
+window.delMember = async (mid,name)=>{
+  if(mid===session.me.id){ toast('不能刪除自己'); return; }
+  if(!confirm(`刪除成員「${name}」？積分紀錄將一併刪除`)) return;
+  await deleteDoc(doc(membersCol(), mid));
+  renderManage();
+};
+</script>
+</body>
+</html>
