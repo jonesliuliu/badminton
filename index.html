@@ -260,7 +260,7 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getAuth, signInAnonymously, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import { getFirestore, collection, doc, addDoc, setDoc, getDoc, getDocs, deleteDoc, updateDoc,
-         onSnapshot, query, orderBy, where, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+         onSnapshot, query, orderBy, where, serverTimestamp, arrayUnion } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
 const firebaseConfig = {
   apiKey: "AIzaSyBcc4P8YePX2xS5sMTlNpf3TYQkTwTroNo",
@@ -270,7 +270,7 @@ const firebaseConfig = {
   messagingSenderId: "223475807993",
   appId: "1:223475807993:web:e62e327f9a8ae43e479428"
 };
-const APP_VER='v2.7.5（2026-07-23）';
+const APP_VER='v2.8.0-beta（2026-07-23）';
 document.getElementById('verTag').textContent='版本 '+APP_VER;
 const fbApp = initializeApp(firebaseConfig);
 const db = getFirestore(fbApp);
@@ -629,6 +629,7 @@ function renderSignup(){
       const canConfirm=promoted && !s.confirmed && (isMgr || s.memberId===session.me.id || s.byId===session.me.id);
       return `<div class="item">
         <span class="num">${i+1}</span><span class="nm">${esc(s.name)}${s.byId!==s.memberId?`<span class="sub">（${esc(s.byName)}代報）</span>`:''}</span>
+        ${s.plan?'<span class="tag t-ok">月繳</span>':''}
         ${isWait?'<span class="tag t-wait">候補</span>':''}
         ${promoted?(s.confirmed?'<span class="tag t-ok">轉正・已確認</span>':'<span class="tag t-promo">候補轉正・未確認</span>'):''}
         ${canConfirm?`<button class="mini act" onclick="confirmSignup('${ev.id}','${s.id}')">確認報到</button>`:''}
@@ -692,8 +693,16 @@ window.proxySignup = async evId=>{
   if(m) await addSignup(evId, m);
 };
 window.cancelSignup = async (evId, sid, name)=>{
-  if(!await askConfirm(`取消「${name}」的報名？`)) return;
-  await safeWrite(()=>deleteDoc(doc(signupsCol(evId), sid)), '已取消');
+  const su=(signupCache[evId]||[]).find(x=>x.id===sid);
+  const isPlan=su && su.plan;
+  if(!await askConfirm(isPlan?`「${name}」請假（取消此日報名）？將記錄請假 1 次`:`取消「${name}」的報名？`)) return;
+  await safeWrite(()=>deleteDoc(doc(signupsCol(evId), sid)), isPlan?'已請假':'已取消');
+  if(isPlan && eventCache[evId]){
+    const ym=eventCache[evId].dateStr.slice(0,7);
+    updateDoc(doc(db,'teams',session.teamId,'plans',ym),
+      {leaves: arrayUnion({memberId:sid, name, dateStr:eventCache[evId].dateStr, t:Date.now(), by:session.me.name})})
+      .catch(e=>console.error(e));
+  }
   // 取消的是現場綁定場次 → 同步移除簽到（排隊區/休息區/等待格）
   const bev=(typeof liveEvent==='function')?liveEvent():null;
   if(liveState && bev && bev.id===evId) removeFromLive(sid, name);
@@ -729,7 +738,8 @@ const LNI={
   ppl:`<svg ${LNI_A}><circle cx="9" cy="8" r="3"/><path d="M4 20c0-3 2.2-5 5-5s5 2 5 5"/><circle cx="17" cy="9" r="2.5"/><path d="M15.5 15.2c2.6.3 4.5 2 4.5 4.8"/></svg>`,
   pin:`<svg ${LNI_A}><path d="M12 21s-6-5.3-6-10a6 6 0 1 1 12 0c0 4.7-6 10-6 10z"/><circle cx="12" cy="11" r="2.2"/></svg>`,
   clk:`<svg ${LNI_A}><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>`,
-  set:`<svg ${LNI_A}><line x1="4" y1="7" x2="20" y2="7"/><circle cx="9" cy="7" r="2.4"/><line x1="4" y1="17" x2="20" y2="17"/><circle cx="15" cy="17" r="2.4"/></svg>`
+  set:`<svg ${LNI_A}><line x1="4" y1="7" x2="20" y2="7"/><circle cx="9" cy="7" r="2.4"/><line x1="4" y1="17" x2="20" y2="17"/><circle cx="15" cy="17" r="2.4"/></svg>`,
+  crd:`<svg ${LNI_A}><rect x="3" y="6" width="18" height="13" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="7" y1="15" x2="11" y2="15"/></svg>`
 };
 /* ---------- 管理頁（分頁） ---------- */
 window.setManageTab = t=>{ manageTab=t; renderManage(); };
@@ -739,6 +749,7 @@ async function renderManage(){
     <button class="${manageTab==='events'?'on':''}" onclick="setManageTab('events')">${LNI.cal} 打球日</button>
     <button class="${manageTab==='members'?'on':''}" onclick="setManageTab('members')">${LNI.ppl} 成員</button>
     <button class="${manageTab==='venues'?'on':''}" onclick="setManageTab('venues')">${LNI.pin} 球館</button>
+    <button class="${manageTab==='plan'?'on':''}" onclick="setManageTab('plan')">${LNI.crd} 月繳</button>
     <button class="${manageTab==='hist'?'on':''}" onclick="setManageTab('hist')">${LNI.clk} 歷史</button>
     <button class="${manageTab==='sys'?'on':''}" onclick="setManageTab('sys')">${LNI.set} 系統</button>
   </div>`;
@@ -827,6 +838,13 @@ async function renderManage(){
         </div>`).join('')||'<div class="sub">尚無球館，新增後建立打球日時即可選擇</div>'}
     </div>`;
   }
+  if(manageTab==='plan'){
+    body=`<div class="card"><h2>月繳方案</h2>
+      <div class="row"><span class="sub">月份</span><input type="month" id="planMonth" value="${planYm}" onchange="planPickMonth(this.value)"></div>
+      <div id="planBox" class="sub">載入中…</div>
+    </div>`;
+    setTimeout(loadPlan,50);
+  }
   if(manageTab==='hist'){
     body=`<div class="card"><h2>歷史報名查詢（近 3 個月）</h2><div id="histBox" class="sub">載入中…</div></div>`;
     setTimeout(loadHist,50);
@@ -874,14 +892,79 @@ window.histShow=async id=>{
       ||'<span class="sub">此場無報名資料</span>';
   }catch(e){ el.innerHTML='讀取失敗：'+esc(e.message); }
 };
+let planYm=todayStr().slice(0,7), planCache=null;
+window.planPickMonth = v=>{ if(v){ planYm=v; loadPlan(); } };
+async function loadPlan(){
+  const el=$('planBox'); if(!el) return;
+  const d=await getDoc(doc(db,'teams',session.teamId,'plans',planYm));
+  planCache=d.exists()?d.data():{memberIds:[],leaves:[]};
+  await refreshMembers();
+  const ids=planCache.memberIds||[];
+  const leaves=planCache.leaves||[];
+  const g={}; leaves.forEach(x=>{ (g[x.name]=g[x.name]||[]).push(x.dateStr); });
+  el.innerHTML=`
+    <div class="divider">月繳成員（點名字切換，綠色＝已加入）</div>
+    <div class="row">${membersCache.map(m=>`<button class="mini ${ids.includes(m.id)?'act':''}" onclick="planToggle('${m.id}')">${esc(m.name)}</button>`).join('')||'尚無成員'}</div>
+    <div class="row" style="margin-top:10px;"><button class="ok" onclick="planApply()">套用月繳名單到 ${planYm} 的打球日</button></div>
+    <div class="sub">建立或開放該月打球日時會自動加入月繳報名；此按鈕用於補同步已存在的場次。</div>
+    <div class="divider">請假統計（${leaves.length} 筆）</div>
+    ${Object.entries(g).map(([n,ds])=>`<div class="item"><span class="nm">${esc(n)}</span>
+      <span class="sub">請假 ${ds.length} 次（${ds.map(x=>x.slice(5).replace('-','/')).join('、')}）</span></div>`).join('')
+      ||'<div class="sub">本月尚無請假紀錄</div>'}`;
+}
+window.planToggle = async mid=>{
+  const ids=new Set(planCache.memberIds||[]);
+  ids.has(mid)?ids.delete(mid):ids.add(mid);
+  planCache.memberIds=[...ids];
+  await safeWrite(()=>setDoc(doc(db,'teams',session.teamId,'plans',planYm),
+    {memberIds:planCache.memberIds}, {merge:true}));
+  loadPlan();
+};
+window.planApply = async ()=>{
+  const evs=Object.values(eventCache).filter(e=>e.dateStr.startsWith(planYm));
+  if(!evs.length){ toast('該月份沒有可報名的打球日'); return; }
+  let n=0;
+  for(const ev of evs) n+=await syncPlanToEvent(ev.id, ev);
+  toast(`同步完成，新增 ${n} 筆月繳報名`);
+};
+// 將該月月繳成員加入打球日報名（已報名者略過）
+async function syncPlanToEvent(evId, evData){
+  const ev=evData||eventCache[evId]; if(!ev) return 0;
+  const ym=ev.dateStr.slice(0,7);
+  const pd=await getDoc(doc(db,'teams',session.teamId,'plans',ym));
+  if(!pd.exists()) return 0;
+  const ids=pd.data().memberIds||[];
+  if(!ids.length) return 0;
+  await refreshMembers();
+  const list=signupCache[evId]||[];
+  const cap=ev.capacity||16;
+  let n=0;
+  for(const mid of ids){
+    if(list.some(s=>s.memberId===mid)) continue;
+    const m=membersCache.find(x=>x.id===mid); if(!m) continue;
+    const cur=list.length+n;
+    await setDoc(doc(signupsCol(evId), mid), {memberId:mid, name:m.name, byId:mid, byName:m.name,
+      plan:true, at:serverTimestamp(), initialStatus: cur>=cap?'wait':'main', confirmed:false});
+    n++;
+  }
+  return n;
+}
 window.createPlayday = async ()=>{
   const dateStr=$('nvDate').value, startStr=$('nvStart').value, endStr=$('nvEnd').value;
   const capacity=parseInt($('nvCap').value)||16, note=$('nvNote').value.trim();
   const venueName=$('nvVenue').value;
   if(!dateStr){ toast('請選日期'); return; }
   const courtCount=parseInt($('nvCourts').value)||2, slotCount=parseInt($('nvSlots').value)||2;
-  const ok=await safeWrite(()=>addDoc(eventsCol(), {dateStr, startStr, endStr, capacity, note, venueName, courtCount, slotCount,
-    open:false, createdBy:session.me.name, createdAt:serverTimestamp()}), '已建立打球日（尚未開放報名）');
+  let newId=null;
+  const ok=await safeWrite(async ()=>{
+    const r=await addDoc(eventsCol(), {dateStr, startStr, endStr, capacity, note, venueName, courtCount, slotCount,
+      open:false, createdBy:session.me.name, createdAt:serverTimestamp()});
+    newId=r.id;
+  }, '已建立打球日（尚未開放報名）');
+  if(ok && newId){
+    const n=await syncPlanToEvent(newId, {dateStr, capacity});
+    if(n) toast(`已自動加入 ${n} 位月繳成員`);
+  }
   if(ok) setTimeout(renderManage, 500);
 };
 window.toggleOpen = async evId=>{
@@ -889,6 +972,7 @@ window.toggleOpen = async evId=>{
   const nowOpen=ev.open!==false;
   await safeWrite(()=>updateDoc(doc(eventsCol(),evId),{open:!nowOpen}),
     nowOpen?'已停止報名':'已開放報名');
+  if(!nowOpen) await syncPlanToEvent(evId);   // 開放時補同步月繳名單
   setTimeout(renderManage,400);
 };
 window.deleteEvent = async evId=>{
