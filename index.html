@@ -269,7 +269,7 @@ const firebaseConfig = {
   messagingSenderId: "223475807993",
   appId: "1:223475807993:web:e62e327f9a8ae43e479428"
 };
-const APP_VER='v2.6.5-beta（2026-07-23）';
+const APP_VER='v2.6.6-beta（2026-07-23）';
 document.getElementById('verTag').textContent='版本 '+APP_VER;
 const fbApp = initializeApp(firebaseConfig);
 const db = getFirestore(fbApp);
@@ -584,6 +584,7 @@ function watchEvents(){
 /* ---------- 報名頁 ---------- */
 let expandedEvs=new Set();
 window.evToggle=id=>{ expandedEvs.has(id)?expandedEvs.delete(id):expandedEvs.add(id); renderSignup(); };
+window.evCardTap=(e,id)=>{ if(e.target.closest('button,select')) return; evToggle(id); };
 function renderSignup(){
   const evs=Object.values(eventCache).sort((a,b)=>a.dateStr.localeCompare(b.dateStr));
   const box=$('signupView');
@@ -620,8 +621,8 @@ function renderSignup(){
       (myIdx<cap ? (mine.initialStatus==='wait' && !mine.confirmed ? '<div class="notice">你已從候補轉為正取！請按「確認報到」</div>' : '')
                  : '<div class="notice">你目前在候補名單，若有人取消將依序遞補</div>');
     const expanded=expandedEvs.has(ev.id);
-    return `<div class="card">
-      <div class="evhead" style="cursor:pointer;" onclick="evToggle('${ev.id}')">
+    return `<div class="card" style="cursor:pointer;" onclick="evCardTap(event,'${ev.id}')">
+      <div class="evhead">
         <span class="evdate">${fmtDate(ev.dateStr)}</span>
         <span class="evtime">${esc(ev.startStr||'')}${ev.endStr?'–'+esc(ev.endStr):''}</span>
         ${ev.venueName?`<span class="evvenue">📍${esc(ev.venueName)}</span>`:''}
