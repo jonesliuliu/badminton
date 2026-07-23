@@ -190,7 +190,7 @@ const firebaseConfig = {
   messagingSenderId: "223475807993",
   appId: "1:223475807993:web:e62e327f9a8ae43e479428"
 };
-const APP_VER='v2.3.0（2026-07-23）';
+const APP_VER='v2.3.1（2026-07-23）';
 document.getElementById('verTag').textContent='版本 '+APP_VER;
 const fbApp = initializeApp(firebaseConfig);
 const db = getFirestore(fbApp);
@@ -968,15 +968,28 @@ function applyCounts(cc,sc){
   liveState.pool.sort((a,b)=>a.since-b.since);
   fillAndAdvance();
 }
-// 當日打球日的場地數/等待格設定自動套用到現場（每個打球日只套一次）
+// 現場綁定的打球日：管理者指定優先，否則取今天的打球日
+function liveEvent(){
+  if(!liveState) return null;
+  if(liveState.eventId && eventCache[liveState.eventId]) return eventCache[liveState.eventId];
+  return Object.values(eventCache).find(e=>e.dateStr===todayStr())||null;
+}
+// 綁定打球日的場地數/等待格設定自動套用到現場（每個打球日只套一次）
 function syncEventSettings(){
   if(!isMgr() || !liveState) return;
-  const ev=Object.values(eventCache).find(e=>e.dateStr===todayStr());
+  const ev=liveEvent();
   if(!ev || liveState.evApplied===ev.id) return;
   liveState.evApplied=ev.id;
   applyCounts(ev.courtCount||2, ev.slotCount||2);
   saveLive();
 }
+window.liveBind = evId=>{
+  if(!isMgr() || !liveState || !evId) return;
+  liveState.eventId=evId;
+  const ev=eventCache[evId];
+  if(ev){ liveState.evApplied=evId; applyCounts(ev.courtCount||2, ev.slotCount||2); }
+  saveLive();
+};
 let evSet=null;
 window.openEvSet = evId=>{
   const ev=eventCache[evId]; if(!ev) return;
@@ -1031,8 +1044,24 @@ function renderLive(){
   const box=$('liveView'); if(!box) return;
   if(!liveState){ box.innerHTML='<div class="card"><div class="sub">載入中…</div></div>'; return; }
   const st=liveState, mgr=isMgr();
-  const seg=(cur,fn)=>Array.from({length:4},(_,k)=>`<button class="mini${k+1===cur?' act':''}" onclick="${fn}(${k+1})">${k+1}</button>`).join('');
   let html='';
+  // 打球日資訊
+  const bev=liveEvent();
+  const evs=Object.values(eventCache).sort((a,b)=>a.dateStr.localeCompare(b.dateStr));
+  const bl=bev?(signupCache[bev.id]||[]):[];
+  const bcap=bev?(bev.capacity||16):0;
+  html+=`<div class="card"><div class="evhead">
+    ${bev?`<span class="evdate">${fmtDate(bev.dateStr)}</span>
+      <span class="evtime">${esc(bev.startStr||'')}${bev.endStr?'–'+esc(bev.endStr):''}</span>
+      ${bev.venueName?`<span class="evvenue">📍${esc(bev.venueName)}</span>`:''}
+      <span class="cnt">報名 ${Math.min(bl.length,bcap)}/${bcap}${bl.length>bcap?`｜候補 ${bl.length-bcap}`:''}｜場地 ${bev.courtCount||2}｜等待格 ${bev.slotCount||2}</span>`
+     :`<span class="sub">今天沒有對應的打球日${mgr&&evs.length?'，可在右側選擇要進行的場次':''}</span>`}
+    <div class="spacer"></div>
+    ${mgr&&evs.length?`<select onchange="liveBind(this.value)">
+      ${bev?'':'<option value="" selected>選擇打球日</option>'}
+      ${evs.map(e=>`<option value="${e.id}" ${bev&&bev.id===e.id?'selected':''}>${fmtDate(e.dateStr)} ${esc(e.startStr||'')}</option>`).join('')}
+    </select>`:''}
+  </div>${bev&&bev.note?`<div class="sub" style="margin-top:4px;">${esc(bev.note)}</div>`:''}</div>`;
   if(mgr){
     html+=`<div class="card"><div class="row">
       <button class="mini${st.paused?' red':''}" onclick="livePause()">${st.paused?'▶ 恢復排場':'⏸ 暫停排場'}</button>
@@ -1110,7 +1139,7 @@ function renderCheckin(){
   const el=$('checkinList'); if(!el || !liveState) return;
   const occ=occupiedIds();
   const mgr=isMgr();
-  const ev=Object.values(eventCache).find(e=>e.dateStr===todayStr());
+  const ev=liveEvent();
   const list=ev?(signupCache[ev.id]||[]):[];
   const cap=ev?(ev.capacity||16):0;
   const rows=list.map((s,i)=>{
@@ -1126,7 +1155,7 @@ function renderCheckin(){
   }).join('');
   const others=membersCache.filter(m=>!occ.has(m.id) && !list.some(s=>s.memberId===m.id))
     .filter(m=>mgr || m.id===session.me.id);
-  el.innerHTML=(rows||'<div class="sub">今天沒有打球日報名資料</div>')
+  el.innerHTML=(rows||'<div class="sub">此打球日尚無報名資料（或現場未綁定打球日）</div>')
     +(others.length?`<div class="divider">臨時加入（未報名）</div>
       <div class="row"><select id="ciSel">${others.map(m=>`<option value="${m.id}">${esc(m.name)}</option>`).join('')}</select>
       <button class="mini act" onclick="liveCheckIn(document.getElementById('ciSel').value)">簽到</button></div>`:'');
