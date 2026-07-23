@@ -481,7 +481,7 @@ async function renderManage(){
         <input type="number" id="nvCap" value="16" min="4" max="60" style="width:80px;">
       </div>
       <div class="row"><input id="nvNote" placeholder="備註（場地編號、費用…）" style="flex:1;"></div>
-      <button class="ok" onclick="createEvent()">建立</button>
+      <button class="ok" onclick="createPlayday()">建立</button>
     </div>
     <div class="card">
       <h2>已建立的打球日</h2>
@@ -538,7 +538,7 @@ async function renderManage(){
   }
   box.innerHTML=tabs+body;
 }
-window.createEvent = async ()=>{
+window.createPlayday = async ()=>{
   const dateStr=$('nvDate').value, startStr=$('nvStart').value, endStr=$('nvEnd').value;
   const capacity=parseInt($('nvCap').value)||16, note=$('nvNote').value.trim();
   const venueName=$('nvVenue').value;
