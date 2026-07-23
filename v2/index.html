@@ -206,6 +206,7 @@
 <div class="overlay" id="moreDlg">
   <div class="dlgbox" style="max-width:340px;">
     <div class="dlgbtns" style="flex-direction:column;margin-top:0;">
+      <button class="cancel" onclick="closeMore();openManual()"><svg class="lni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.4 2.3c-.8.3-1.4 1-1.4 1.9v.3"/><line x1="11.5" y1="17" x2="11.6" y2="17"/></svg> 操作手冊</button>
       <button class="cancel" onclick="closeMore();changeMyPw()"><svg class="lni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="16" r="4"/><path d="M11 13L20 4"/><path d="M16.5 7.5l3 3"/></svg> 改密碼</button>
       <button class="danger" onclick="logout()">登出</button>
       <button class="cancel" onclick="closeMore()">關閉</button>
@@ -350,7 +351,7 @@ const firebaseConfig = {
   messagingSenderId: "223475807993",
   appId: "1:223475807993:web:e62e327f9a8ae43e479428"
 };
-const APP_VER='v2.8.3（2026-07-23）';
+const APP_VER='v2.8.4（2026-07-23）';
 document.getElementById('verTag').textContent='版本 '+APP_VER;
 const fbApp = initializeApp(firebaseConfig);
 const db = getFirestore(fbApp);
