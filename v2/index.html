@@ -270,7 +270,7 @@ const firebaseConfig = {
   messagingSenderId: "223475807993",
   appId: "1:223475807993:web:e62e327f9a8ae43e479428"
 };
-const APP_VER='v2.7.2（2026-07-23）';
+const APP_VER='v2.7.3（2026-07-23）';
 document.getElementById('verTag').textContent='版本 '+APP_VER;
 const fbApp = initializeApp(firebaseConfig);
 const db = getFirestore(fbApp);
@@ -377,9 +377,10 @@ function renderLogin(){
   $('loginView').classList.remove('hide');
   $('topbar').classList.add('hide');
   $('appView').classList.add('hide');
+  const last=localStorage.getItem('bm2_lastTeam');
   $('loginTeam').innerHTML =
-    teams.map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join('')
-    + '<option value="__admin__">⚙ 系統管理</option>';
+    teams.map(t=>`<option value="${t.id}" ${t.id===last?'selected':''}>${esc(t.name)}</option>`).join('')
+    + `<option value="__admin__" ${last==='__admin__'?'selected':''}>⚙ 系統管理</option>`;
 }
 ['loginName','loginPw'].forEach(id=>$(id).addEventListener('keydown',e=>{ if(e.key==='Enter') window.doLogin(); }));
 window.doLogin = async ()=>{
@@ -398,6 +399,7 @@ window.doLogin = async ()=>{
       }
       session={admin:true, me:{id:'__admin__', name, role:'admin'}};
       localStorage.setItem('bm2_session', JSON.stringify(session));
+      localStorage.setItem('bm2_lastTeam','__admin__');
       $('loginPw').value=''; $('loginName').value='';
       enterAdmin();
     }catch(e){ toast('❌ 登入失敗：'+e.message); }
@@ -410,6 +412,7 @@ window.doLogin = async ()=>{
     session={ teamId:tid, teamName:teams.find(t=>t.id===tid).name,
               me:{id:d.id, name:d.data().name, role:d.data().role} };
     localStorage.setItem('bm2_session', JSON.stringify(session));
+    localStorage.setItem('bm2_lastTeam', tid);
     updateDoc(doc(db,'teams',tid,'members',d.id),{lastLogin:serverTimestamp()}).catch(()=>{});
     $('loginPw').value=''; $('loginName').value='';
     enterApp();
