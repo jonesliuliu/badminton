@@ -131,6 +131,13 @@
     border-radius:20px; font-size:17px; font-weight:700; pointer-events:none; box-shadow:0 4px 16px rgba(0,0,0,.5);}
   body.dragging{user-select:none; -webkit-user-select:none;}
   .dropover{outline:2px solid var(--teal); background:#134e4a !important; border-radius:14px;}
+  .manual h4{margin:16px 0 6px; font-size:16px; color:var(--blue); border-left:4px solid var(--blue); padding-left:8px;}
+  .manual p,.manual li{font-size:15px; line-height:1.7;}
+  .manual ol,.manual ul{margin:4px 0; padding-left:22px;}
+  .manual li{margin:4px 0;}
+  .manual b{color:#fff;}
+  .manual .mwarn{background:#78350f; border-radius:10px; padding:10px 12px; margin-top:14px;}
+  .manual .mwarn p{color:#fde68a; font-size:14px; margin:4px 0;}
   #toast{position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:#000; color:#fff;
     padding:12px 22px; border-radius:24px; font-size:15px; opacity:0; transition:opacity .3s; z-index:99; pointer-events:none; max-width:90vw;}
   #toast.show{opacity:.94;}
@@ -160,6 +167,7 @@
   <button class="hbtn on" id="navSignup" onclick="showView('signup')"><svg class="lni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg> 報名</button>
   <button class="hbtn" id="navRank" onclick="showView('rank')"><svg class="lni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="20" x2="6" y2="13"/><line x1="12" y1="20" x2="12" y2="5"/><line x1="18" y1="20" x2="18" y2="10"/></svg> 排行</button>
   <button class="hbtn hide" id="navManage" onclick="showView('manage')"><svg class="lni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="7" x2="20" y2="7"/><circle cx="9" cy="7" r="2.4"/><line x1="4" y1="17" x2="20" y2="17"/><circle cx="15" cy="17" r="2.4"/></svg> 管理</button>
+  <button class="hbtn" onclick="openManual()"><svg class="lni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.4 2.3c-.8.3-1.4 1-1.4 1.9v.3"/><line x1="11.5" y1="17" x2="11.6" y2="17"/></svg> 手冊</button>
   <button class="hbtn" id="btnPw" onclick="changeMyPw()"><svg class="lni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="16" r="4"/><path d="M11 13L20 4"/><path d="M16.5 7.5l3 3"/></svg> 改密碼</button>
   <button class="hbtn" onclick="logout()">登出</button>
 </header>
@@ -202,6 +210,67 @@
       <button class="danger" onclick="logout()">登出</button>
       <button class="cancel" onclick="closeMore()">關閉</button>
     </div>
+  </div>
+</div>
+
+<div class="overlay" id="manualDlg">
+  <div class="dlgbox manual" style="width:min(680px,100%);max-height:88vh;overflow:auto;">
+    <div class="msg" style="font-weight:700;">📖 操作手冊 <span class="sub" id="mnVer"></span></div>
+
+    <h4>1｜登入與帳號</h4>
+    <p>選擇球隊 → 輸入名字與密碼 → 登入（密碼欄按 Enter 也可）。系統會記住這台裝置上次的球隊；登入後可用「改密碼」自行變更；忘記密碼請洽球隊管理者重設。</p>
+
+    <h4>2｜報名打球日</h4>
+    <ul>
+      <li>報名頁列出所有開放中的打球日，卡片顯示日期、時間、球館、正取/候補人數；點卡片任意處展開<b>名單與代報名</b>，再點一下收合</li>
+      <li>按「<b>報名</b>」幫自己報名；「<b>取消報名</b>」取消。額滿後報名自動列入<b>候補</b>，有人取消會依序遞補</li>
+      <li>從候補<b>轉正取</b>的人會有黃色標籤提醒，本人、代報者或管理者請按「<b>確認報到</b>」</li>
+      <li>顯示「<b>尚未開放</b>」表示管理者還沒開放報名，點了沒有作用</li>
+      <li><b>月繳成員</b>：該月打球日自動幫你報名（名單掛「月繳」標籤），不用自己報；臨時有事按「取消報名」＝<b>請假</b>，系統會記錄次數，退費或折抵由管理者線下處理</li>
+    </ul>
+
+    <h4>3｜到場簽到</h4>
+    <p>到球場後點「<b>簽到</b>」，找到自己的名字按「簽到」即加入排隊；誤按可按「<b>取消簽到</b>」。名單只列正取（含候補轉正）；沒報名的臨時球友請管理者先代報名再簽到。</p>
+
+    <h4>4｜現場（球友）</h4>
+    <ul>
+      <li>畫面由上而下：<b>球場</b>（大字看板，左右兩隊）→ <b>等待場次</b>（下一場、下下場的四人名單，上場時系統才自動平衡分隊）→ <b>排隊區</b>（依等候時間排序）→ 休息區</li>
+      <li>系統自動排場：等最久的人依序進等待格，等待一滿員且有空場就上場</li>
+      <li>臨時這場不打：點自己名字旁的 <b>✕</b> 回排隊區（重新計時），空位顯示橘色「待遞補」由現場協調遞補；要休息點「休息」，回場點「回排隊區」</li>
+      <li>所有裝置即時同步，用自己手機就能看目前排到哪</li>
+    </ul>
+
+    <h4>5｜現場操作（管理者）</h4>
+    <ul>
+      <li>頁首下拉選擇要進行的<b>打球日</b>（預設今天），每個打球日的現場資料各自獨立</li>
+      <li>「準備中」就位後按「<b>▶ 開始比賽</b>」（語音播報場次與名單）；打完按「<b>比賽結束</b>」輸入比分，積分即時更新，四人自動回排隊區</li>
+      <li><b>調整名單</b>：按住名字拖曳（或點兩位球員）互換位置，拖到空位＝移入遞補；球場、等待格、排隊區之間都可互調</li>
+      <li><b>空位規則</b>：球友取消（✕）的空位鎖定（橘色），只能拖曳遞補；管理者調度產生的空位開放，排隊區自動補</li>
+      <li>「取消比賽」中止不計分；頁面底部「<b>結束今天</b>」清空現場名單（雙重確認，積分保留）</li>
+    </ul>
+
+    <h4>6｜管理（管理者）</h4>
+    <ul>
+      <li><b>打球日</b>：建立（日期/時間/球館/人數上限/場地數/等待格），建立後預設未開放，按「<b>開放報名</b>」球友才能報名；「✎ 設定」可改場地數/等待格（現場即時生效）</li>
+      <li><b>成員</b>：新增球友（姓名+密碼+角色）、升降管理者、重設密碼、檢視最後登入、刪除</li>
+      <li><b>月繳</b>：選月份 → 逐筆新增月繳球友；建立/開放該月打球日自動報名，「套用」可補同步；名單顯示每人<b>請假次數與日期</b></li>
+      <li><b>球館</b>：維護球館清單供建立打球日選用</li>
+      <li><b>歷史</b>：查近 3 個月的打球日與最終報名名單</li>
+      <li><b>系統</b>：自動排場開關（暫停）、語音播報開關（各裝置獨立）</li>
+    </ul>
+
+    <h4>7｜積分怎麼算（Elo 制）</h4>
+    <p>初始 1500 分，隊伍實力＝兩人平均。贏弱隊加分少、爆冷贏強隊加分多；分差越大加成越高（21:5 比 21:19 多）；勝負雙方加減相同。管理者修改或刪除任何一場紀錄後，全體積分依完整紀錄重新計算。詳細公式與實例見「排行」頁底部。</p>
+
+    <h4>8｜總管理者</h4>
+    <p>登入頁球隊選「⚙ 系統管理」。可檢視各球隊總覽（成員數/管理者/近期場次）、建立與刪除球隊、調整球隊顯示順序（影響登入選單）、以「進入」身分管理任一球隊。</p>
+
+    <div class="mwarn">
+      <p>・資料即時雲端同步，多裝置共用；公司網路可能封鎖 Firebase，連不上請改用行動網路</p>
+      <p>・「取消報名」＝這天不來（月繳者記請假）；現場的「✕」＝人在場只是這場不打，兩者不同</p>
+    </div>
+
+    <div class="dlgbtns"><button class="cancel" onclick="closeManual()">關閉</button></div>
   </div>
 </div>
 
@@ -281,7 +350,7 @@ const firebaseConfig = {
   messagingSenderId: "223475807993",
   appId: "1:223475807993:web:e62e327f9a8ae43e479428"
 };
-const APP_VER='v2.8.1（2026-07-23）';
+const APP_VER='v2.8.2（2026-07-23）';
 document.getElementById('verTag').textContent='版本 '+APP_VER;
 const fbApp = initializeApp(firebaseConfig);
 const db = getFirestore(fbApp);
@@ -569,6 +638,8 @@ async function refreshVenues(){
   venuesCache=snap.docs.map(d=>({id:d.id, ...d.data()}))
     .sort((a,b)=>a.name.localeCompare(b.name,'zh-Hant'));
 }
+window.openManual=()=>{ $('mnVer').textContent=APP_VER; $('manualDlg').classList.add('show'); };
+window.closeManual=()=>$('manualDlg').classList.remove('show');
 window.openMore=()=>$('moreDlg').classList.add('show');
 window.closeMore=()=>$('moreDlg').classList.remove('show');
 let currentView='signup';
