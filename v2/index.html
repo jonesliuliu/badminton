@@ -15,7 +15,7 @@
   body{margin:0; font-family:-apple-system,"PingFang TC","Noto Sans TC",sans-serif; background:var(--bg); color:var(--txt); min-height:100vh;}
   button{font-family:inherit; border:none; border-radius:12px; cursor:pointer; color:#fff; font-size:16px;}
   input,select,textarea{font-family:inherit; background:var(--panel2); border:1px solid var(--line); border-radius:10px; color:var(--txt); font-size:16px; padding:10px;}
-  header{display:flex; align-items:center; gap:10px; padding:calc(10px + env(safe-area-inset-top)) 16px 10px; background:var(--panel); border-bottom:1px solid var(--line); flex-wrap:wrap; position:sticky; top:0; z-index:5;}
+  header{display:flex; align-items:center; gap:10px; padding:calc(10px + env(safe-area-inset-top)) 16px 10px; background:var(--panel); border-bottom:1px solid var(--line); flex-wrap:wrap; position:fixed; top:0; left:0; right:0; z-index:44;}
   header h1{font-size:19px; margin:0;}
   .spacer{flex:1;}
   .hbtn{padding:10px 16px; background:var(--panel2);}
@@ -351,8 +351,13 @@ const firebaseConfig = {
   messagingSenderId: "223475807993",
   appId: "1:223475807993:web:e62e327f9a8ae43e479428"
 };
-const APP_VER='v2.8.5（2026-07-23）';
+const APP_VER='v2.8.6（2026-07-23）';
 try{ history.scrollRestoration='manual'; }catch(e){}
+// 標題列為固定式：即時量測高度，內容區永遠從其下方開始
+const _hdr=document.getElementById('topbar');
+function fitHeader(){ document.body.style.paddingTop=(_hdr.classList.contains('hide')?0:_hdr.offsetHeight)+'px'; }
+new ResizeObserver(fitHeader).observe(_hdr);
+window.addEventListener('resize', fitHeader);
 document.getElementById('verTag').textContent='版本 '+APP_VER;
 const fbApp = initializeApp(firebaseConfig);
 const db = getFirestore(fbApp);
@@ -515,6 +520,7 @@ async function enterApp(){
   $('topbar').classList.remove('hide');
   $('appView').classList.remove('hide');
   $('adminView').classList.add('hide');
+  fitHeader(); needTopReset=true;
   $('teamName').textContent=session.teamName;
   $('whoami').textContent=`${session.me.name}${session.me.role==='manager'?'（管理者）':''}`;
   $('navManage').classList.toggle('hide', session.me.role!=='manager');
@@ -538,6 +544,7 @@ async function enterAdmin(){
   $('loginView').classList.add('hide');
   $('topbar').classList.remove('hide');
   $('appView').classList.remove('hide');
+  fitHeader();
   $('teamName').textContent='系統管理';
   $('whoami').textContent=session.me.name+'（總管理者）';
   $('navSignup').classList.add('hide');
@@ -695,10 +702,12 @@ function watchEvents(){
 }
 
 /* ---------- 報名頁 ---------- */
+let needTopReset=false;
 let expandedEvs=new Set();
 window.evToggle=id=>{ expandedEvs.has(id)?expandedEvs.delete(id):expandedEvs.add(id); renderSignup(); };
 window.evCardTap=(e,id)=>{ if(e.target.closest('button,select')) return; evToggle(id); };
 function renderSignup(){
+  if(needTopReset && Object.keys(eventCache).length){ needTopReset=false; setTimeout(()=>window.scrollTo(0,0),50); }
   const evs=Object.values(eventCache).sort((a,b)=>a.dateStr.localeCompare(b.dateStr));
   const box=$('signupView');
   if(!evs.length){
