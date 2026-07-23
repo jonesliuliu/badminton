@@ -269,7 +269,7 @@ const firebaseConfig = {
   messagingSenderId: "223475807993",
   appId: "1:223475807993:web:e62e327f9a8ae43e479428"
 };
-const APP_VER='v2.6.6-beta（2026-07-23）';
+const APP_VER='v2.6.7-beta（2026-07-23）';
 document.getElementById('verTag').textContent='版本 '+APP_VER;
 const fbApp = initializeApp(firebaseConfig);
 const db = getFirestore(fbApp);
@@ -501,7 +501,7 @@ window.adminDelTeam = async (tid,name)=>{
   if(!await askConfirm(`刪除球隊「${name}」？所有成員、積分、打球日將全部刪除`)) return;
   if(!await askConfirm('再次確認：此動作無法復原！')) return;
   await safeWrite(async ()=>{
-    for(const colName of ['members','venues','events']){
+    for(const colName of ['members','venues','matches','live','events']){
       const s=await getDocs(collection(db,'teams',tid,colName));
       for(const d of s.docs){
         if(colName==='events'){
