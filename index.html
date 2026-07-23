@@ -270,7 +270,7 @@ const firebaseConfig = {
   messagingSenderId: "223475807993",
   appId: "1:223475807993:web:e62e327f9a8ae43e479428"
 };
-const APP_VER='v2.8.0-beta（2026-07-23）';
+const APP_VER='v2.8.1-beta（2026-07-23）';
 document.getElementById('verTag').textContent='版本 '+APP_VER;
 const fbApp = initializeApp(firebaseConfig);
 const db = getFirestore(fbApp);
@@ -675,11 +675,12 @@ async function addSignup(evId, member){
   if(ev && ev.open===false){ toast('此打球日尚未開放報名'); return; }
   const list=signupCache[evId]||[];
   if(list.some(s=>s.memberId===member.id)){ toast('已報名過'); return; }
-  const cap=(eventCache[evId]&&eventCache[evId].capacity)||16;
+  const cap=(ev&&ev.capacity)||16;
   const initialStatus = list.length>=cap ? 'wait' : 'main';
+  const pids=ev?await getPlanIds(ev.dateStr.slice(0,7)):new Set();
   await safeWrite(()=>setDoc(doc(signupsCol(evId), member.id), {
     memberId:member.id, name:member.name,
-    byId:session.me.id, byName:session.me.name,
+    byId:session.me.id, byName:session.me.name, plan:pids.has(member.id),
     at:serverTimestamp(), initialStatus, confirmed:false
   }), initialStatus==='wait'?`${member.name} 已列入候補`:`${member.name} 報名成功`);
 }
@@ -804,6 +805,7 @@ async function renderManage(){
   }
   if(manageTab==='members'){
     await refreshMembers();
+    const pids=await getPlanIds(todayStr().slice(0,7));
     body=`
     <div class="card">
       <h2>成員管理</h2>
@@ -815,7 +817,7 @@ async function renderManage(){
       </div>
       ${membersCache.map(m=>`
         <div class="item">
-          <span class="nm">${esc(m.name)} ${m.role==='manager'?'<span class="tag t-mgr">管理者</span>':''}</span>
+          <span class="nm">${esc(m.name)} ${m.role==='manager'?'<span class="tag t-mgr">管理者</span>':''} ${pids.has(m.id)?'<span class="tag t-ok">月繳(本月)</span>':''}</span>
           <span class="sub">積分 ${m.elo??1500}｜最後登入 ${fmtTs(m.lastLogin)}</span>
           <button class="mini" onclick="toggleRole('${m.id}')">${m.role==='manager'?'降為球友':'升為管理者'}</button>
           <button class="mini" onclick="resetPw('${m.id}','${esc(m.name)}')">重設密碼</button>
@@ -893,6 +895,15 @@ window.histShow=async id=>{
   }catch(e){ el.innerHTML='讀取失敗：'+esc(e.message); }
 };
 let planYm=todayStr().slice(0,7), planCache=null;
+const planSetCache={};
+async function getPlanIds(ym){
+  if(planSetCache[ym]) return planSetCache[ym];
+  try{
+    const d=await getDoc(doc(db,'teams',session.teamId,'plans',ym));
+    planSetCache[ym]=new Set(d.exists()?(d.data().memberIds||[]):[]);
+  }catch(e){ planSetCache[ym]=new Set(); }
+  return planSetCache[ym];
+}
 window.planPickMonth = v=>{ if(v){ planYm=v; loadPlan(); } };
 async function loadPlan(){
   const el=$('planBox'); if(!el) return;
@@ -916,6 +927,7 @@ window.planToggle = async mid=>{
   const ids=new Set(planCache.memberIds||[]);
   ids.has(mid)?ids.delete(mid):ids.add(mid);
   planCache.memberIds=[...ids];
+  delete planSetCache[planYm];
   await safeWrite(()=>setDoc(doc(db,'teams',session.teamId,'plans',planYm),
     {memberIds:planCache.memberIds}, {merge:true}));
   loadPlan();
