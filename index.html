@@ -88,6 +88,7 @@
   <h1>🏸 <span id="teamName"></span></h1>
   <span class="sub" id="whoami"></span>
   <div class="spacer"></div>
+  <button class="hbtn hide" id="navBack" onclick="backToAdmin()">⬅ 總覽</button>
   <div id="evBind" class="hide" style="position:relative;">
     <button class="hbtn" onclick="toggleBindMenu(event)" style="text-align:left;line-height:1.3;padding:6px 14px;">
       <span id="ebLine1" style="font-size:15px;"></span> ▾<br>
@@ -97,10 +98,10 @@
       border:1px solid var(--line);border-radius:12px;min-width:250px;z-index:60;
       box-shadow:0 8px 24px rgba(0,0,0,.5);max-height:60vh;overflow:auto;"></div>
   </div>
-  <button class="hbtn hide" id="navBack" onclick="backToAdmin()">⬅ 總覽</button>
-  <button class="hbtn on" id="navSignup" onclick="showView('signup')">📅 報名</button>
-  <button class="hbtn hide" id="navCheckin" onclick="openCheckin()">✅ 簽到</button>
   <button class="hbtn" id="navLive" onclick="showView('live')">🏟 現場</button>
+  <button class="hbtn hide" id="navCheckin" onclick="openCheckin()">✅ 簽到</button>
+  <span id="navDiv" class="hide" style="width:4px;align-self:stretch;background:var(--red);border-radius:2px;"></span>
+  <button class="hbtn on" id="navSignup" onclick="showView('signup')">📅 報名</button>
   <button class="hbtn" id="navRank" onclick="showView('rank')">📊 排行</button>
   <button class="hbtn hide" id="navManage" onclick="showView('manage')">🛠 管理</button>
   <button class="hbtn" id="btnPw" onclick="changeMyPw()">🔑 改密碼</button>
@@ -200,7 +201,7 @@ const firebaseConfig = {
   messagingSenderId: "223475807993",
   appId: "1:223475807993:web:e62e327f9a8ae43e479428"
 };
-const APP_VER='v2.4.0（2026-07-23）';
+const APP_VER='v2.4.1（2026-07-23）';
 document.getElementById('verTag').textContent='版本 '+APP_VER;
 const fbApp = initializeApp(firebaseConfig);
 const db = getFirestore(fbApp);
@@ -357,6 +358,7 @@ async function enterApp(){
   $('navLive').classList.remove('hide');
   $('navRank').classList.remove('hide');
   $('navCheckin').classList.remove('hide');
+  $('navDiv').classList.remove('hide');
   await refreshMembers();
   await refreshVenues();
   watchEvents();
@@ -372,6 +374,7 @@ async function enterAdmin(){
   $('whoami').textContent=session.me.name+'（總管理者）';
   $('navSignup').classList.add('hide');
   $('navCheckin').classList.add('hide');
+  $('navDiv').classList.add('hide');
   $('evBind').classList.add('hide');
   $('navLive').classList.add('hide');
   $('navRank').classList.add('hide');
