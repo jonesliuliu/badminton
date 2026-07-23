@@ -206,7 +206,7 @@ const firebaseConfig = {
   messagingSenderId: "223475807993",
   appId: "1:223475807993:web:e62e327f9a8ae43e479428"
 };
-const APP_VER='v2.5.5（2026-07-23）';
+const APP_VER='v2.5.6（2026-07-23）';
 document.getElementById('verTag').textContent='版本 '+APP_VER;
 const fbApp = initializeApp(firebaseConfig);
 const db = getFirestore(fbApp);
@@ -1051,7 +1051,7 @@ function locSet(l,v){
     else if(v) liveState.pool.push(v);
   }else if(l.t==='slot'){
     liveState.slots[l.i].p[l.j]=v;
-    liveState.slots[l.i].lock[l.j]=v?false:true;   // 手動移入解除鎖定；手動移出視為保留空位
+    liveState.slots[l.i].lock[l.j]=false;   // 拖曳造成的空位＝開放，由排隊區自動遞補；僅取消（✕）鎖定
   }
   else if(l.t==='court'){ const m=liveState.courts[l.i].match;
     (l.team==='A'?m.teamA:m.teamB)[l.j]=v?v.id:null;
@@ -1064,6 +1064,7 @@ function doSwap(a,b){
   if(!va&&!vb) return;
   locSet(b,va); locSet(a,vb);
   liveState.pool.sort((x,y)=>x.since-y.since);
+  fillAndAdvance();          // 調整後立即檢查：開放空位自動補、滿員且有空場即上場
   saveLive();
 }
 /* ---- 球場操作 ---- */
