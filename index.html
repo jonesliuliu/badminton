@@ -206,7 +206,7 @@ const firebaseConfig = {
   messagingSenderId: "223475807993",
   appId: "1:223475807993:web:e62e327f9a8ae43e479428"
 };
-const APP_VER='v2.5.3（2026-07-23）';
+const APP_VER='v2.5.4（2026-07-23）';
 document.getElementById('verTag').textContent='版本 '+APP_VER;
 const fbApp = initializeApp(firebaseConfig);
 const db = getFirestore(fbApp);
@@ -838,7 +838,7 @@ function sameLoc(a,b){ return a&&b&&a.t===b.t&&a.i===b.i&&(a.j??0)===(b.j??0)&&(
 function defaultLive(){
   return {courtCount:2, slotCount:2, paused:false, daySeq:0,
     courts:[{label:'1',match:null},{label:'2',match:null},{label:'3',match:null},{label:'4',match:null}],
-    slots:[{p:[null,null,null,null]},{p:[null,null,null,null]},{p:[null,null,null,null]},{p:[null,null,null,null]}],
+    slots:[{p:[null,null,null,null],lock:[false,false,false,false]},{p:[null,null,null,null],lock:[false,false,false,false]},{p:[null,null,null,null],lock:[false,false,false,false]},{p:[null,null,null,null],lock:[false,false,false,false]}],
     pool:[], resting:[], lastPairs:[]};
 }
 function watchLive(){
@@ -849,7 +849,10 @@ function watchLive(){
   if(!ev){ if($('liveView') && !$('liveView').classList.contains('hide')) renderLive(); return; }
   boundEventId=ev.id;
   unsubLive=onSnapshot(liveDocRef(ev.id), s=>{
-    if(s.exists()) liveState=s.data();
+    if(s.exists()){
+      liveState=s.data();
+      (liveState.slots||[]).forEach(s2=>{ if(!s2.lock) s2.lock=[false,false,false,false]; });
+    }
     else{
       liveState=defaultLive();
       liveState.courtCount=ev.courtCount||2;
@@ -886,14 +889,14 @@ function bestSplit(four){
 function fillAndAdvance(){
   const st=liveState;
   st.pool.sort((a,b)=>a.since-b.since);
-  const fillSlots=()=>{
+  const fillSlots=()=>{                        // 逐位遞補：取消鎖定的空位不自動補
     for(let i=0;i<st.slotCount;i++){
       const s=st.slots[i];
-      if(s.p.some(x=>x)) continue;              // 有人的格子不動（缺人不自動遞補）
-      if(st.pool.length<4) continue;
-      const four=st.pool.slice(0,4);
-      s.p=[four[0],four[1],four[2],four[3]];          // 不分隊，上場時才自動分
-      st.pool=st.pool.filter(p=>!four.includes(p));
+      for(let j=0;j<4;j++){
+        if(s.p[j] || (s.lock&&s.lock[j])) continue;
+        if(!st.pool.length) return;
+        s.p[j]=st.pool.shift();
+      }
     }
   };
   fillSlots();
@@ -905,7 +908,7 @@ function fillAndAdvance(){
       if(!s0 || s0.p.some(x=>!x)) break;        // 等待一缺人 → 不遞補上場
       const split=bestSplit(s0.p);              // 上場那一刻做平衡分隊
       c.match={teamA:[split.A[0].id,split.A[1].id], teamB:[split.B[0].id,split.B[1].id], startedAt:null, seq:null};
-      st.slots.shift(); st.slots.push({p:[null,null,null,null]});
+      st.slots.shift(); st.slots.push({p:[null,null,null,null],lock:[false,false,false,false]});
       fillSlots();
     }
   }
@@ -944,8 +947,9 @@ window.liveUnrest = id=>{
 window.slotCancel = async (i,j)=>{
   const cell=liveState.slots[i].p[j]; if(!cell) return;
   if(!isMgr() && session.me.id!==cell.id) return;
-  if(!await askConfirm(`「${mname(cell.id)}」取消此場次回到排隊區？（空位由現場自行協調遞補）`)) return;
+  if(!await askConfirm(`「${mname(cell.id)}」取消此場次回到排隊區？（空位保留，由拖曳手動遞補）`)) return;
   liveState.slots[i].p[j]=null;
+  liveState.slots[i].lock[j]=true;
   liveState.pool.push(cell);
   liveState.pool.sort((a,b)=>a.since-b.since);
   saveLive();
@@ -1030,7 +1034,10 @@ function locSet(l,v){
   if(l.t==='pool'){
     if(l.i<liveState.pool.length){ if(v) liveState.pool[l.i]=v; else liveState.pool.splice(l.i,1); }
     else if(v) liveState.pool.push(v);
-  }else if(l.t==='slot'){ liveState.slots[l.i].p[l.j]=v; }
+  }else if(l.t==='slot'){
+    liveState.slots[l.i].p[l.j]=v;
+    liveState.slots[l.i].lock[l.j]=v?false:true;   // 手動移入解除鎖定；手動移出視為保留空位
+  }
   else if(l.t==='court'){ const m=liveState.courts[l.i].match; (l.team==='A'?m.teamA:m.teamB)[l.j]=v.id; }
 }
 function doSwap(a,b){
@@ -1120,7 +1127,7 @@ function applyCounts(cc,sc){
     if(m){ [...m.teamA,...m.teamB].forEach(id=>liveState.pool.push({id,since:Date.now()})); liveState.courts[i].match=null; } }
   liveState.courtCount=cc;
   for(let i=sc;i<4;i++){ const s=liveState.slots[i];
-    s.p.forEach(x=>{ if(x) liveState.pool.push(x); }); s.p=[null,null,null,null]; }
+    s.p.forEach(x=>{ if(x) liveState.pool.push(x); }); s.p=[null,null,null,null]; s.lock=[false,false,false,false]; }
   liveState.slotCount=sc;
   liveState.pool.sort((a,b)=>a.since-b.since);
   fillAndAdvance();
@@ -1189,7 +1196,7 @@ window.liveCourtCount = n=>{ if(!isMgr()) return;
   liveState.courtCount=n; fillAndAdvance(); saveLive(); };
 window.liveSlotCount = n=>{ if(!isMgr()) return;
   for(let i=n;i<4;i++){ const s=liveState.slots[i];
-    s.p.forEach(x=>{ if(x) liveState.pool.push(x); }); s.p=[null,null,null,null]; }
+    s.p.forEach(x=>{ if(x) liveState.pool.push(x); }); s.p=[null,null,null,null]; s.lock=[false,false,false,false]; }
   liveState.slotCount=n; liveState.pool.sort((a,b)=>a.since-b.since); fillAndAdvance(); saveLive(); };
 window.livePause = ()=>{ if(!isMgr()) return; liveState.paused=!liveState.paused; if(!liveState.paused) fillAndAdvance(); saveLive(); };
 window.liveRename = async ci=>{ if(!isMgr()) return;
@@ -1243,14 +1250,17 @@ function renderLive(){
     const cell=j=>{
       const v=s.p[j];
       const attrs=`data-lt="slot" data-li="${i}" data-lj="${j}" data-lteam=""`;
-      if(!v) return `<span class="emptycell" ${attrs} ${mgr?`onclick="liveTap('slot',${i},${j},'')"`:''}>空位</span>`;
+      if(!v){
+        const locked=s.lock&&s.lock[j];
+        return `<span class="emptycell" ${attrs} style="${locked?'border-color:var(--amber);color:var(--amber);':''}" ${mgr?`onclick="liveTap('slot',${i},${j},'')"`:''}>${locked?'空位(待遞補)':'空位'}</span>`;
+      }
       const selfCell=session.me.id===v.id;
       const seld=sameLoc(liveSel,{t:'slot',i,j,team:''});
       const xbtn=(mgr||selfCell)?`<button class="mini red" style="padding:2px 8px;" onclick="event.stopPropagation();slotCancel(${i},${j})">✕</button>`:'';
       return `<span class="pchip${seld?' selchip':''}" ${attrs} ${mgr?`onclick="liveTap('slot',${i},${j},'')"`:''}>${esc(mname(v.id))}<small>${melo(v.id)}</small>${xbtn}</span>`;
     };
-    const partial=s.p.some(x=>x)&&s.p.some(x=>!x);
-    html+=`<div class="divider"><b style="color:var(--txt);">等待${zh[i]}</b> ${partial?'<span class="tag t-wait">缺人，請協調遞補</span>':''}</div>
+    const holed=s.p.some((x,j)=>!x && s.lock && s.lock[j]);
+    html+=`<div class="divider"><b style="color:var(--txt);">等待${zh[i]}</b> ${holed?'<span class="tag t-wait">缺人，請拖曳遞補</span>':''}</div>
       <div class="row">${cell(0)}${cell(1)}${cell(2)}${cell(3)}</div>`;
   }
   html+='</div>';
