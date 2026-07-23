@@ -62,6 +62,13 @@
   .tabs button{flex:1; background:transparent; padding:12px 4px; font-size:15px; color:var(--sub); border-radius:0;}
   .tabs button.on{background:var(--blue); color:#fff; font-weight:700;}
   .hide{display:none;}
+  .overlay{position:fixed; inset:0; background:rgba(0,0,0,.6); display:none; align-items:center; justify-content:center; z-index:50; padding:16px;}
+  .overlay.show{display:flex;}
+  .dlgbox{background:var(--panel); border:1px solid var(--line); border-radius:18px; padding:22px; width:min(420px,100%);}
+  .dlgbox .msg{font-size:17px; line-height:1.6; white-space:pre-line; margin-bottom:14px;}
+  .dlgbox input{width:100%;}
+  .dlgbtns{display:flex; gap:10px; margin-top:14px;}
+  .dlgbtns button{flex:1; padding:13px; font-size:17px;}
   #toast{position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:#000; color:#fff;
     padding:12px 22px; border-radius:24px; font-size:15px; opacity:0; transition:opacity .3s; z-index:99; pointer-events:none; max-width:90vw;}
   #toast.show{opacity:.94;}
@@ -100,6 +107,16 @@
   <div id="adminView" class="hide"></div>
 </main>
 
+<div class="overlay" id="dlg">
+  <div class="dlgbox">
+    <div class="msg" id="dlgMsg"></div>
+    <input id="dlgInput" class="hide" autocomplete="off">
+    <div class="dlgbtns">
+      <button class="cancel" id="dlgCancel">取消</button>
+      <button class="danger" id="dlgOk">確定</button>
+    </div>
+  </div>
+</div>
 <div id="toast"></div>
 
 <script type="module">
@@ -125,6 +142,33 @@ const $ = id => document.getElementById(id);
 const esc = s => String(s??'').replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function hash(s){ let h=5381; for(const c of s){ h=((h<<5)+h+c.charCodeAt(0))>>>0; } return h.toString(16); }
 function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2600); }
+// App 內建對話框（取代瀏覽器原生 confirm / prompt，各裝置行為一致）
+function askConfirm(msg, danger=true){
+  return new Promise(res=>{
+    $('dlgMsg').textContent=msg;
+    $('dlgInput').classList.add('hide');
+    $('dlgOk').className=danger?'danger':'ok';
+    $('dlg').classList.add('show');
+    $('dlgOk').onclick=()=>{ $('dlg').classList.remove('show'); res(true); };
+    $('dlgCancel').onclick=()=>{ $('dlg').classList.remove('show'); res(false); };
+  });
+}
+function askInput(msg, type='password'){
+  return new Promise(res=>{
+    $('dlgMsg').textContent=msg;
+    const inp=$('dlgInput');
+    inp.classList.remove('hide'); inp.type=type; inp.value='';
+    $('dlgOk').className='ok';
+    $('dlg').classList.add('show');
+    setTimeout(()=>inp.focus(),50);
+    $('dlgOk').onclick=()=>{ $('dlg').classList.remove('show'); res(inp.value); };
+    $('dlgCancel').onclick=()=>{ $('dlg').classList.remove('show'); res(null); };
+  });
+}
+document.addEventListener('keydown',e=>{
+  if(e.key==='Enter' && document.getElementById('dlg').classList.contains('show')
+     && !document.getElementById('dlgInput').classList.contains('hide')) document.getElementById('dlgOk').click();
+});
 function todayStr(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function fmtDate(s){
   const [y,m,d]=s.split('-').map(Number);
@@ -199,7 +243,7 @@ window.doLogin = async ()=>{
     try{
       const snap=await getDocs(collection(db,'admins'));
       if(snap.empty){
-        if(!confirm(`尚未設定系統管理者。\n要以「${name}」與此密碼建立系統管理者帳號嗎？`)) return;
+        if(!await askConfirm(`尚未設定系統管理者。\n要以「${name}」與此密碼建立系統管理者帳號嗎？`, false)) return;
         await addDoc(collection(db,'admins'),{name, hash:hash(pw), createdAt:serverTimestamp()});
         toast('系統管理者已建立');
       }else{
@@ -300,8 +344,8 @@ window.backToAdmin = ()=>{
   enterAdmin();
 };
 window.adminDelTeam = async (tid,name)=>{
-  if(!confirm(`刪除球隊「${name}」？所有成員、積分、打球日將全部刪除`)) return;
-  if(!confirm('再次確認：此動作無法復原！')) return;
+  if(!await askConfirm(`刪除球隊「${name}」？所有成員、積分、打球日將全部刪除`)) return;
+  if(!await askConfirm('再次確認：此動作無法復原！')) return;
   await safeWrite(async ()=>{
     for(const colName of ['members','venues','events']){
       const s=await getDocs(collection(db,'teams',tid,colName));
@@ -320,10 +364,10 @@ window.adminDelTeam = async (tid,name)=>{
 /* ---------- 變更自己的密碼 ---------- */
 window.changeMyPw = async ()=>{
   if(session.me.id==='__admin__') return;
-  const cur=prompt('輸入目前密碼：'); if(cur===null) return;
+  const cur=await askInput('輸入目前密碼：'); if(cur===null) return;
   const mDoc=await getDoc(doc(membersCol(), session.me.id));
   if(!mDoc.exists() || mDoc.data().hash!==hash(cur)){ toast('目前密碼錯誤'); return; }
-  const nw=prompt('輸入新密碼：'); if(!nw) return;
+  const nw=await askInput('輸入新密碼：'); if(!nw) return;
   await safeWrite(()=>updateDoc(doc(membersCol(), session.me.id), {hash:hash(nw)}), '密碼已變更');
 };
 async function refreshMembers(){
@@ -444,7 +488,7 @@ window.proxySignup = async evId=>{
   if(m) await addSignup(evId, m);
 };
 window.cancelSignup = async (evId, sid, name)=>{
-  if(!confirm(`取消「${name}」的報名？`)) return;
+  if(!await askConfirm(`取消「${name}」的報名？`)) return;
   await safeWrite(()=>deleteDoc(doc(signupsCol(evId), sid)), '已取消');
 };
 window.confirmSignup = async (evId, sid)=>{
@@ -549,7 +593,7 @@ window.createPlayday = async ()=>{
 };
 window.deleteEvent = async evId=>{
   const list=signupCache[evId]||[];
-  if(!confirm(`刪除這個打球日？${list.length?`（已有 ${list.length} 人報名）`:''}`)) return;
+  if(!await askConfirm(`刪除這個打球日？${list.length?`（已有 ${list.length} 人報名）`:''}`)) return;
   await safeWrite(async ()=>{
     for(const s of list) await deleteDoc(doc(signupsCol(evId), s.id));
     await deleteDoc(doc(eventsCol(), evId));
@@ -571,13 +615,13 @@ window.toggleRole = async mid=>{
   renderManage();
 };
 window.resetPw = async (mid,name)=>{
-  const pw=prompt(`輸入「${name}」的新密碼：`);
+  const pw=await askInput(`輸入「${name}」的新密碼：`);
   if(!pw) return;
   await safeWrite(()=>updateDoc(doc(membersCol(), mid), {hash:hash(pw)}), '密碼已更新');
 };
 window.delMember = async (mid,name)=>{
   if(mid===session.me.id){ toast('不能刪除自己'); return; }
-  if(!confirm(`刪除成員「${name}」？積分紀錄將一併刪除`)) return;
+  if(!await askConfirm(`刪除成員「${name}」？積分紀錄將一併刪除`)) return;
   await safeWrite(()=>deleteDoc(doc(membersCol(), mid)), '已刪除');
   renderManage();
 };
@@ -589,7 +633,7 @@ window.addVenue = async ()=>{
   renderManage();
 };
 window.delVenue = async (vid,name)=>{
-  if(!confirm(`刪除球館「${name}」？`)) return;
+  if(!await askConfirm(`刪除球館「${name}」？`)) return;
   await safeWrite(()=>deleteDoc(doc(venuesCol(), vid)), '已刪除');
   renderManage();
 };
