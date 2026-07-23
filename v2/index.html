@@ -201,7 +201,7 @@ const firebaseConfig = {
   messagingSenderId: "223475807993",
   appId: "1:223475807993:web:e62e327f9a8ae43e479428"
 };
-const APP_VER='v2.4.3（2026-07-23）';
+const APP_VER='v2.4.4（2026-07-23）';
 document.getElementById('verTag').textContent='版本 '+APP_VER;
 const fbApp = initializeApp(firebaseConfig);
 const db = getFirestore(fbApp);
@@ -578,7 +578,23 @@ window.proxySignup = async evId=>{
 window.cancelSignup = async (evId, sid, name)=>{
   if(!await askConfirm(`取消「${name}」的報名？`)) return;
   await safeWrite(()=>deleteDoc(doc(signupsCol(evId), sid)), '已取消');
+  // 取消的是現場綁定場次 → 同步移除簽到（排隊區/休息區/等待格）
+  const bev=(typeof liveEvent==='function')?liveEvent():null;
+  if(liveState && bev && bev.id===evId) removeFromLive(sid, name);
 };
+function removeFromLive(id, name){
+  const onCourt=liveState.courts.some(c=>c.match && [...c.match.teamA,...c.match.teamB].includes(id));
+  if(onCourt){ toast(`${name} 正在場上比賽，請至「現場」處理`); return; }
+  let changed=false;
+  const n0=liveState.pool.length;
+  liveState.pool=liveState.pool.filter(p=>p.id!==id);
+  if(liveState.pool.length!==n0) changed=true;
+  const r0=liveState.resting.length;
+  liveState.resting=liveState.resting.filter(x=>x!==id);
+  if(liveState.resting.length!==r0) changed=true;
+  liveState.slots.forEach(s=>s.p.forEach((x,j)=>{ if(x&&x.id===id){ s.p[j]=null; changed=true; } }));
+  if(changed){ saveLive(); toast(`${name} 的簽到已一併移除`); }
+}
 window.confirmSignup = async (evId, sid)=>{
   await safeWrite(()=>updateDoc(doc(signupsCol(evId), sid), {confirmed:true, confirmedAt:serverTimestamp()}), '已確認報到');
 };
