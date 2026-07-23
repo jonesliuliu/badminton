@@ -192,7 +192,7 @@ const firebaseConfig = {
   messagingSenderId: "223475807993",
   appId: "1:223475807993:web:e62e327f9a8ae43e479428"
 };
-const APP_VER='v2.3.4（2026-07-23）';
+const APP_VER='v2.3.5（2026-07-23）';
 document.getElementById('verTag').textContent='版本 '+APP_VER;
 const fbApp = initializeApp(firebaseConfig);
 const db = getFirestore(fbApp);
@@ -1034,10 +1034,11 @@ window.evPick=(k,n)=>{ evSet[k]=n; renderEvSet(); };
 window.closeEvSet=()=>$('evsetDlg').classList.remove('show');
 window.saveEvSet=async ()=>{
   await safeWrite(()=>updateDoc(doc(eventsCol(),evSet.id),{courtCount:evSet.courts, slotCount:evSet.slots}),'設定已更新');
-  if(evSet.dateStr===todayStr() && liveState && isMgr()){
+  const bev=liveEvent();
+  if(liveState && isMgr() && bev && bev.id===evSet.id){   // 現場綁定的場次 → 即時生效
     applyCounts(evSet.courts, evSet.slots);
     liveState.evApplied=evSet.id;
-    saveLive();                       // 今天的場次即時生效
+    saveLive();
   }
   closeEvSet();
   setTimeout(renderManage,400);
