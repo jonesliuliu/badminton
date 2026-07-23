@@ -270,7 +270,7 @@ const firebaseConfig = {
   messagingSenderId: "223475807993",
   appId: "1:223475807993:web:e62e327f9a8ae43e479428"
 };
-const APP_VER='v2.7.4（2026-07-23）';
+const APP_VER='v2.7.5（2026-07-23）';
 document.getElementById('verTag').textContent='版本 '+APP_VER;
 const fbApp = initializeApp(firebaseConfig);
 const db = getFirestore(fbApp);
@@ -1051,6 +1051,26 @@ window.liveCheckIn = id=>{
   toast(mname(id)+' 已簽到');
   renderCheckin();
 };
+window.uncheckIn = async id=>{
+  if(!liveState) return;
+  if(!isMgr() && session.me.id!==id) return;
+  for(const c of liveState.courts){
+    const m=c.match; if(!m) continue;
+    const iA=m.teamA.indexOf(id), iB=m.teamB.indexOf(id);
+    if(iA<0 && iB<0) continue;
+    if(m.startedAt){ toast(`${mname(id)} 正在比賽中，無法取消簽到`); return; }
+    if(!await askConfirm(`取消「${mname(id)}」的簽到？`)) return;
+    if(iA>=0) m.teamA[iA]=null; else m.teamB[iB]=null;
+    fillAndAdvance(); saveLive(); renderCheckin();
+    toast('已取消簽到'); return;
+  }
+  if(!await askConfirm(`取消「${mname(id)}」的簽到？`)) return;
+  liveState.pool=liveState.pool.filter(p=>p.id!==id);
+  liveState.resting=liveState.resting.filter(x=>x!==id);
+  liveState.slots.forEach(s=>s.p.forEach((x,j)=>{ if(x&&x.id===id){ s.p[j]=null; s.lock[j]=false; } }));
+  fillAndAdvance(); saveLive(); renderCheckin();
+  toast('已取消簽到');
+};
 window.liveLeave = async id=>{
   if(!isMgr()) return;
   if(!await askConfirm(`「${mname(id)}」離場？`)) return;
@@ -1472,6 +1492,7 @@ function renderCheckin(){
       ${s.initialStatus==='wait'?'<span class="tag t-promo">候補轉正</span>':''}
       ${here?'<span class="tag t-main">✓ 已簽到</span>':''}
       ${canDo?`<button class="ok" style="padding:8px 22px;" onclick="liveCheckIn('${s.memberId}')">簽到</button>`:''}
+      ${here&&(mgr||s.memberId===session.me.id)?`<button class="cancel" style="padding:8px 14px;" onclick="uncheckIn('${s.memberId}')">取消簽到</button>`:''}
     </div>`;
   }).join('');
   const ttl=ev?`${fmtDate(ev.dateStr)} ${ev.startStr||''}${ev.endStr?'–'+ev.endStr:''}${ev.venueName?' 📍'+esc(ev.venueName):''}`:'';
