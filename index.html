@@ -269,7 +269,7 @@ const firebaseConfig = {
   messagingSenderId: "223475807993",
   appId: "1:223475807993:web:e62e327f9a8ae43e479428"
 };
-const APP_VER='v2.6.4-beta（2026-07-23）';
+const APP_VER='v2.6.5-beta（2026-07-23）';
 document.getElementById('verTag').textContent='版本 '+APP_VER;
 const fbApp = initializeApp(firebaseConfig);
 const db = getFirestore(fbApp);
@@ -670,9 +670,16 @@ window.cancelSignup = async (evId, sid, name)=>{
   if(liveState && bev && bev.id===evId) removeFromLive(sid, name);
 };
 function removeFromLive(id, name){
-  const onCourt=liveState.courts.some(c=>c.match && [...c.match.teamA,...c.match.teamB].includes(id));
-  if(onCourt){ toast(`${name} 正在場上比賽，請至「現場」處理`); return; }
   let changed=false;
+  // 場上：準備中 → 移除並留空位（待遞補）；比賽進行中 → 不動，提示處理
+  for(const c of liveState.courts){
+    const m=c.match; if(!m) continue;
+    const iA=m.teamA.indexOf(id), iB=m.teamB.indexOf(id);
+    if(iA<0 && iB<0) continue;
+    if(m.startedAt){ toast(`${name} 正在場上比賽中，請至「現場」處理`); return; }
+    if(iA>=0) m.teamA[iA]=null; else m.teamB[iB]=null;
+    changed=true;
+  }
   const n0=liveState.pool.length;
   liveState.pool=liveState.pool.filter(p=>p.id!==id);
   if(liveState.pool.length!==n0) changed=true;
