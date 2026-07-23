@@ -192,7 +192,7 @@ const firebaseConfig = {
   messagingSenderId: "223475807993",
   appId: "1:223475807993:web:e62e327f9a8ae43e479428"
 };
-const APP_VER='v2.3.2（2026-07-23）';
+const APP_VER='v2.3.3（2026-07-23）';
 document.getElementById('verTag').textContent='版本 '+APP_VER;
 const fbApp = initializeApp(firebaseConfig);
 const db = getFirestore(fbApp);
@@ -974,9 +974,11 @@ function applyCounts(cc,sc){
   liveState.pool.sort((a,b)=>a.since-b.since);
   fillAndAdvance();
 }
-// 現場綁定的打球日：管理者指定優先，否則取今天的打球日
+// 現場綁定的打球日：球友可在自己裝置選擇查看的場次（不影響全隊）；管理者選擇則切換全隊綁定
+let localEventId=null;
 function liveEvent(){
   if(!liveState) return null;
+  if(!isMgr() && localEventId && eventCache[localEventId]) return eventCache[localEventId];
   if(liveState.eventId && eventCache[liveState.eventId]) return eventCache[liveState.eventId];
   return Object.values(eventCache).find(e=>e.dateStr===todayStr())||null;
 }
@@ -991,7 +993,7 @@ function syncEventSettings(){
 }
 function updateBindSel(){
   const sel=$('evBindSel'); if(!sel) return;
-  if(!session || !session.teamId || !isMgr() || !liveState){ sel.classList.add('hide'); return; }
+  if(!session || !session.teamId || !liveState){ sel.classList.add('hide'); return; }
   const evs=Object.values(eventCache).sort((a,b)=>a.dateStr.localeCompare(b.dateStr));
   if(!evs.length){ sel.classList.add('hide'); return; }
   const bev=liveEvent();
@@ -1000,11 +1002,18 @@ function updateBindSel(){
   sel.classList.remove('hide');
 }
 window.liveBind = evId=>{
-  if(!isMgr() || !liveState || !evId) return;
-  liveState.eventId=evId;
-  const ev=eventCache[evId];
-  if(ev){ liveState.evApplied=evId; applyCounts(ev.courtCount||2, ev.slotCount||2); }
-  saveLive();
+  if(!evId || !liveState) return;
+  if(isMgr()){
+    liveState.eventId=evId;
+    const ev=eventCache[evId];
+    if(ev){ liveState.evApplied=evId; applyCounts(ev.courtCount||2, ev.slotCount||2); }
+    saveLive();
+  }else{
+    localEventId=evId;
+    updateBindSel();
+    if(checkinOpen) renderCheckin();
+    if($('liveView') && !$('liveView').classList.contains('hide')) renderLive();
+  }
 };
 let evSet=null;
 window.openEvSet = evId=>{
