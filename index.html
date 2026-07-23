@@ -206,7 +206,7 @@ const firebaseConfig = {
   messagingSenderId: "223475807993",
   appId: "1:223475807993:web:e62e327f9a8ae43e479428"
 };
-const APP_VER='v2.5.2（2026-07-23）';
+const APP_VER='v2.5.3（2026-07-23）';
 document.getElementById('verTag').textContent='版本 '+APP_VER;
 const fbApp = initializeApp(firebaseConfig);
 const db = getFirestore(fbApp);
@@ -1232,7 +1232,7 @@ function renderLive(){
     if(mgr){
       html+= started
         ? `<div class="row"><button class="ok" style="flex:1;font-size:18px;" onclick="liveEnd(${i})">比賽結束</button><button class="mini red" onclick="liveAbort(${i})">取消比賽</button></div>`
-        : `<div class="row"><button class="pri" style="flex:1;font-size:18px;" onclick="liveStart(${i})">▶ 開始比賽</button><button class="mini red" onclick="liveAbort(${i})">取消預排</button></div>`;
+        : `<div class="row"><button class="pri" style="flex:1;font-size:18px;" onclick="liveStart(${i})">▶ 開始比賽</button></div>`;
     }
   }
   html+='</div>';
