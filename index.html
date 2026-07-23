@@ -270,7 +270,7 @@ const firebaseConfig = {
   messagingSenderId: "223475807993",
   appId: "1:223475807993:web:e62e327f9a8ae43e479428"
 };
-const APP_VER='v2.7.1（2026-07-23）';
+const APP_VER='v2.7.2（2026-07-23）';
 document.getElementById('verTag').textContent='版本 '+APP_VER;
 const fbApp = initializeApp(firebaseConfig);
 const db = getFirestore(fbApp);
@@ -368,7 +368,8 @@ onAuthStateChanged(auth, async user=>{
 });
 async function loadTeams(){
   const snap = await getDocs(collection(db,'teams'));
-  teams = snap.docs.map(d=>({id:d.id, name:d.data().name}));
+  teams = snap.docs.map(d=>({id:d.id, name:d.data().name, order:d.data().order??999}))
+    .sort((a,b)=>a.order-b.order || a.name.localeCompare(b.name,'zh-Hant'));
 }
 
 /* ---------- 登入 ---------- */
@@ -482,6 +483,8 @@ async function renderAdmin(){
     ${rows.map(r=>`<div class="item">
       <span class="nm"><b>${esc(r.name)}</b><br>
         <span class="sub">成員 ${r.count} 人｜管理者：${esc(r.mgrs.join('、')||'—')}｜近期打球日 ${r.evs} 場</span></span>
+      <button class="mini" onclick="adminMove('${r.id}',-1)">↑</button>
+      <button class="mini" onclick="adminMove('${r.id}',1)">↓</button>
       <button class="mini act" onclick="adminEnterTeam('${r.id}')">進入</button>
       <button class="mini red" onclick="adminDelTeam('${r.id}','${esc(r.name)}')">刪除</button>
     </div>`).join('')||'<div class="sub">尚無球隊</div>'}
@@ -504,6 +507,16 @@ window.backToAdmin = ()=>{
   Object.keys(signupUnsubs).forEach(id=>{ signupUnsubs[id](); delete signupUnsubs[id]; delete signupCache[id]; delete eventCache[id]; });
   session={admin:true, me:{id:'__admin__', name:session.me.name, role:'admin'}};
   enterAdmin();
+};
+window.adminMove = async (tid,dir)=>{
+  const i=teams.findIndex(t=>t.id===tid);
+  const j=i+dir;
+  if(i<0 || j<0 || j>=teams.length) return;
+  [teams[i],teams[j]]=[teams[j],teams[i]];
+  await safeWrite(async ()=>{
+    for(let k=0;k<teams.length;k++) await updateDoc(doc(db,'teams',teams[k].id),{order:k});
+  },'順序已更新');
+  renderAdmin();
 };
 window.adminDelTeam = async (tid,name)=>{
   if(!await askConfirm(`刪除球隊「${name}」？所有成員、積分、打球日將全部刪除`)) return;
