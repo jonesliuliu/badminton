@@ -206,7 +206,7 @@ const firebaseConfig = {
   messagingSenderId: "223475807993",
   appId: "1:223475807993:web:e62e327f9a8ae43e479428"
 };
-const APP_VER='v2.5.1（2026-07-23）';
+const APP_VER='v2.5.2（2026-07-23）';
 document.getElementById('verTag').textContent='版本 '+APP_VER;
 const fbApp = initializeApp(firebaseConfig);
 const db = getFirestore(fbApp);
@@ -562,10 +562,10 @@ function renderSignup(){
       ${ev.note?`<div class="sub" style="margin-top:6px;">${esc(ev.note)}</div>`:''}
       ${myStatus}
       ${expanded?`
+      ${proxySel}
       <div class="divider">正取名單</div>
       ${main.map((s,i)=>row(s,i,false)).join('')||'<div class="sub">尚無人報名</div>'}
-      ${wait.length?`<div class="divider">候補名單</div>${wait.map((s,i)=>row(s,i,true)).join('')}`:''}
-      ${proxySel}`:''}
+      ${wait.length?`<div class="divider">候補名單</div>${wait.map((s,i)=>row(s,i,true)).join('')}`:''}`:''}
     </div>`;
   }).join('');
 }
