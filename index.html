@@ -429,7 +429,7 @@ function renderSignup(){
     const row=(s,i,isWait)=>{
       const promoted=!isWait && s.initialStatus==='wait';
       const canCancel=isMgr || s.memberId===session.me.id || s.byId===session.me.id;
-      const canConfirm=promoted && !s.confirmed && (isMgr || s.memberId===session.me.id);
+      const canConfirm=promoted && !s.confirmed && (isMgr || s.memberId===session.me.id || s.byId===session.me.id);
       return `<div class="item">
         <span class="num">${i+1}</span><span class="nm">${esc(s.name)}${s.byId!==s.memberId?`<span class="sub">（${esc(s.byName)}代報）</span>`:''}</span>
         ${isWait?'<span class="tag t-wait">候補</span>':''}
