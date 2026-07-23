@@ -69,6 +69,12 @@
   .dlgbox input{width:100%;}
   .dlgbtns{display:flex; gap:10px; margin-top:14px;}
   .dlgbtns button{flex:1; padding:13px; font-size:17px;}
+  .pchip{display:inline-flex; gap:6px; align-items:center; background:var(--panel2); padding:8px 12px;
+    border-radius:14px; font-size:16px; cursor:pointer; user-select:none; -webkit-user-select:none;}
+  .pchip small{color:var(--sub); font-size:12px;}
+  .pchip.selchip{outline:2px solid var(--teal); background:#134e4a;}
+  .emptycell{display:inline-flex; border:1.5px dashed var(--line); color:var(--sub); padding:8px 14px;
+    border-radius:14px; cursor:pointer; font-size:14px; user-select:none;}
   #toast{position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:#000; color:#fff;
     padding:12px 22px; border-radius:24px; font-size:15px; opacity:0; transition:opacity .3s; z-index:99; pointer-events:none; max-width:90vw;}
   #toast.show{opacity:.94;}
@@ -84,6 +90,8 @@
   <div class="spacer"></div>
   <button class="hbtn hide" id="navBack" onclick="backToAdmin()">⬅ 總覽</button>
   <button class="hbtn on" id="navSignup" onclick="showView('signup')">📅 報名</button>
+  <button class="hbtn" id="navLive" onclick="showView('live')">🏟 現場</button>
+  <button class="hbtn" id="navRank" onclick="showView('rank')">📊 排行</button>
   <button class="hbtn hide" id="navManage" onclick="showView('manage')">🛠 管理</button>
   <button class="hbtn" id="btnPw" onclick="changeMyPw()">🔑 改密碼</button>
   <button class="hbtn" onclick="logout()">登出</button>
@@ -104,10 +112,40 @@
 
 <main id="appView" class="hide">
   <div id="signupView"></div>
+  <div id="liveView" class="hide"></div>
+  <div id="rankView" class="hide"></div>
   <div id="manageView" class="hide"></div>
   <div id="adminView" class="hide"></div>
 </main>
 
+<div class="overlay" id="scoreDlg">
+  <div class="dlgbox" style="width:min(520px,100%);">
+    <div class="msg" id="sdTitle" style="text-align:center;font-weight:700;"></div>
+    <div style="display:flex;gap:12px;align-items:center;justify-content:center;">
+      <div style="flex:1;text-align:center;">
+        <div class="sub" id="sdNameA" style="min-height:36px;"></div>
+        <div id="sdA" style="font-size:48px;font-weight:800;">21</div>
+        <div style="display:flex;gap:8px;justify-content:center;">
+          <button class="cancel" style="width:56px;" onclick="sdBump('a',-1)">−</button>
+          <button class="cancel" style="width:56px;" onclick="sdBump('a',1)">＋</button>
+        </div>
+      </div>
+      <div class="sub" style="font-weight:800;">：</div>
+      <div style="flex:1;text-align:center;">
+        <div class="sub" id="sdNameB" style="min-height:36px;"></div>
+        <div id="sdB" style="font-size:48px;font-weight:800;">15</div>
+        <div style="display:flex;gap:8px;justify-content:center;">
+          <button class="cancel" style="width:56px;" onclick="sdBump('b',-1)">−</button>
+          <button class="cancel" style="width:56px;" onclick="sdBump('b',1)">＋</button>
+        </div>
+      </div>
+    </div>
+    <div class="dlgbtns">
+      <button class="cancel" id="sdCancel">取消</button>
+      <button class="ok" id="sdOk">確認</button>
+    </div>
+  </div>
+</div>
 <div class="overlay" id="dlg">
   <div class="dlgbox">
     <div class="msg" id="dlgMsg"></div>
@@ -134,7 +172,7 @@ const firebaseConfig = {
   messagingSenderId: "223475807993",
   appId: "1:223475807993:web:e62e327f9a8ae43e479428"
 };
-const APP_VER='v2.1.0（2026-07-23）';
+const APP_VER='v2.2.0（2026-07-23）';
 document.getElementById('verTag').textContent='版本 '+APP_VER;
 const fbApp = initializeApp(firebaseConfig);
 const db = getFirestore(fbApp);
@@ -288,9 +326,12 @@ async function enterApp(){
   $('navSignup').classList.remove('hide');
   $('navBack').classList.toggle('hide', !session.admin);
   $('btnPw').classList.toggle('hide', session.me.id==='__admin__');
+  $('navLive').classList.remove('hide');
+  $('navRank').classList.remove('hide');
   await refreshMembers();
   await refreshVenues();
   watchEvents();
+  watchLive();
   showView('signup');
 }
 /* ---------- 系統管理（總管理者） ---------- */
@@ -301,8 +342,12 @@ async function enterAdmin(){
   $('teamName').textContent='系統管理';
   $('whoami').textContent=session.me.name+'（總管理者）';
   $('navSignup').classList.add('hide');
+  $('navLive').classList.add('hide');
+  $('navRank').classList.add('hide');
   $('navManage').classList.add('hide');
   $('navBack').classList.add('hide');
+  $('liveView').classList.add('hide');
+  $('rankView').classList.add('hide');
   $('btnPw').classList.add('hide');
   $('signupView').classList.add('hide');
   $('manageView').classList.add('hide');
@@ -342,6 +387,7 @@ window.adminEnterTeam = async tid=>{
 };
 window.backToAdmin = ()=>{
   if(unsubEvents){ unsubEvents(); unsubEvents=null; }
+  if(unsubLive){ unsubLive(); unsubLive=null; }
   Object.keys(signupUnsubs).forEach(id=>{ signupUnsubs[id](); delete signupUnsubs[id]; delete signupCache[id]; delete eventCache[id]; });
   session={admin:true, me:{id:'__admin__', name:session.me.name, role:'admin'}};
   enterAdmin();
@@ -384,11 +430,13 @@ async function refreshVenues(){
     .sort((a,b)=>a.name.localeCompare(b.name,'zh-Hant'));
 }
 window.showView = v=>{
-  $('signupView').classList.toggle('hide', v!=='signup');
-  $('manageView').classList.toggle('hide', v!=='manage');
-  $('navSignup').classList.toggle('on', v==='signup');
-  $('navManage').classList.toggle('on', v==='manage');
+  ['signup','live','rank','manage'].forEach(x=>{
+    const el=$(x+'View'); if(el) el.classList.toggle('hide', v!==x);
+    const nb=$('nav'+x[0].toUpperCase()+x.slice(1)); if(nb) nb.classList.toggle('on', v===x);
+  });
   if(v==='manage') renderManage();
+  if(v==='live') renderLive();
+  if(v==='rank') renderRank();
 };
 
 /* ---------- 打球日監聽 ---------- */
@@ -652,6 +700,435 @@ window.createTeam = async ()=>{
   }, `球隊「${name}」建立完成`);
   if(ok) renderAdmin();
 };
+
+/* ================= 現場（球場端計分排場） ================= */
+const K=32, START_ELO=1500;
+let liveState=null, unsubLive=null, liveSel=null, checkinOpen=false, lastHist=[];
+const liveDocRef = () => doc(db,'teams',session.teamId,'live','state');
+const matchesCol = () => collection(db,'teams',session.teamId,'matches');
+const isMgr = () => session && session.me.role==='manager';
+const mname = id => { const m=membersCache.find(x=>x.id===id); return m?m.name:'？'; };
+const melo  = id => { const m=membersCache.find(x=>x.id===id); return m?(m.elo??START_ELO):START_ELO; };
+function fmtWait(ms){ const m=Math.floor(ms/60000); return m<1?'剛到':(m<60?m+' 分':Math.floor(m/60)+' 時 '+(m%60)+' 分'); }
+function sameLoc(a,b){ return a&&b&&a.t===b.t&&a.i===b.i&&(a.j??0)===(b.j??0)&&(a.team||'')===(b.team||''); }
+
+function defaultLive(){
+  return {courtCount:2, slotCount:2, paused:false, daySeq:0,
+    courts:[{label:'1',match:null},{label:'2',match:null},{label:'3',match:null},{label:'4',match:null}],
+    slots:[{p:[null,null,null,null]},{p:[null,null,null,null]},{p:[null,null,null,null]},{p:[null,null,null,null]}],
+    pool:[], resting:[], lastPairs:[]};
+}
+function watchLive(){
+  if(unsubLive) unsubLive();
+  unsubLive=onSnapshot(liveDocRef(), s=>{
+    if(s.exists()) liveState=s.data();
+    else { liveState=defaultLive(); if(isMgr()) setDoc(liveDocRef(), liveState); }
+    liveSel=null;
+    if($('liveView') && !$('liveView').classList.contains('hide')) renderLive();
+  }, e=>console.error(e));
+}
+function saveLive(){ return safeWrite(()=>setDoc(liveDocRef(), liveState)); }
+
+function occupiedIds(){
+  const ids=new Set();
+  liveState.pool.forEach(p=>ids.add(p.id));
+  liveState.resting.forEach(id=>ids.add(id));
+  liveState.slots.forEach(s=>s.p.forEach(x=>{ if(x) ids.add(x.id); }));
+  liveState.courts.forEach(c=>{ if(c.match) [...c.match.teamA,...c.match.teamB].forEach(id=>ids.add(id)); });
+  return ids;
+}
+/* ---- 配對演算法：等最久 4 人 → 兩隊積分最接近；同組合避免重複搭檔 ---- */
+function pairKeyOf(a,b){ const x=[...a].sort().join('+'), y=[...b].sort().join('+'); return [x,y].sort().join('|'); }
+function bestSplit(four){
+  const combos=[[[0,1],[2,3]],[[0,2],[1,3]],[[0,3],[1,2]]];
+  const cands=combos.map(([a,b])=>{
+    const A=[four[a[0]],four[a[1]]], B=[four[b[0]],four[b[1]]];
+    const ra=(melo(A[0].id)+melo(A[1].id))/2, rb=(melo(B[0].id)+melo(B[1].id))/2;
+    return {A,B,diff:Math.abs(ra-rb),key:pairKeyOf(A.map(x=>x.id),B.map(x=>x.id))};
+  }).sort((x,y)=>x.diff-y.diff);
+  return cands.find(c=>!(liveState.lastPairs||[]).includes(c.key)) || cands[0];
+}
+function fillAndAdvance(){
+  const st=liveState;
+  st.pool.sort((a,b)=>a.since-b.since);
+  const fillSlots=()=>{
+    for(let i=0;i<st.slotCount;i++){
+      const s=st.slots[i];
+      if(s.p.some(x=>x)) continue;              // 有人的格子不動（缺人不自動遞補）
+      if(st.pool.length<4) continue;
+      const four=st.pool.slice(0,4);
+      const split=bestSplit(four);
+      s.p=[split.A[0],split.A[1],split.B[0],split.B[1]];
+      st.pool=st.pool.filter(p=>!four.includes(p));
+    }
+  };
+  fillSlots();
+  if(!st.paused){
+    for(let ci=0;ci<st.courtCount;ci++){
+      const c=st.courts[ci];
+      if(c.match) continue;
+      const s0=st.slots[0];
+      if(!s0 || s0.p.some(x=>!x)) break;        // 等待一缺人 → 不遞補上場
+      c.match={teamA:[s0.p[0].id,s0.p[1].id], teamB:[s0.p[2].id,s0.p[3].id], startedAt:null, seq:null};
+      st.slots.shift(); st.slots.push({p:[null,null,null,null]});
+      fillSlots();
+    }
+  }
+}
+/* ---- 簽到 / 離場 / 休息 ---- */
+window.liveCheckIn = id=>{
+  if(!isMgr() || !id) return;
+  if(occupiedIds().has(id)){ toast('已在現場名單中'); return; }
+  liveState.pool.push({id, since:Date.now()});
+  fillAndAdvance(); saveLive();
+};
+window.liveLeave = async id=>{
+  if(!isMgr()) return;
+  if(!await askConfirm(`「${mname(id)}」離場？`)) return;
+  liveState.pool=liveState.pool.filter(p=>p.id!==id);
+  liveState.resting=liveState.resting.filter(x=>x!==id);
+  saveLive();
+};
+window.liveRest = id=>{
+  if(!isMgr() && session.me.id!==id) return;
+  const p=liveState.pool.find(x=>x.id===id); if(!p) return;
+  liveState.pool=liveState.pool.filter(x=>x.id!==id);
+  liveState.resting.push(id);
+  saveLive();
+};
+window.liveUnrest = id=>{
+  if(!isMgr() && session.me.id!==id) return;
+  liveState.resting=liveState.resting.filter(x=>x!==id);
+  liveState.pool.push({id, since:Date.now()});
+  fillAndAdvance(); saveLive();
+};
+/* ---- 等待格：取消（回排隊區，空位不遞補，保留原等待順位） ---- */
+window.slotCancel = async (i,j)=>{
+  const cell=liveState.slots[i].p[j]; if(!cell) return;
+  if(!isMgr() && session.me.id!==cell.id) return;
+  if(!await askConfirm(`「${mname(cell.id)}」取消此場次回到排隊區？（空位由現場自行協調遞補）`)) return;
+  liveState.slots[i].p[j]=null;
+  liveState.pool.push(cell);
+  liveState.pool.sort((a,b)=>a.since-b.since);
+  saveLive();
+};
+/* ---- 點選互換（管理者）：點 A 再點 B 交換；點空位移入 ---- */
+window.liveTap = (t,i,j,team)=>{
+  if(!isMgr()) return;
+  const loc={t,i,j,team:team||''};
+  if(!liveSel){
+    if(!locGet(loc)) return;                    // 先選人，不能先選空位
+    liveSel=loc; renderLive(); return;
+  }
+  if(sameLoc(liveSel,loc)){ liveSel=null; renderLive(); return; }
+  doSwap(liveSel,loc); liveSel=null;
+};
+function locGet(l){
+  if(l.t==='pool') return liveState.pool[l.i]||null;
+  if(l.t==='slot') return liveState.slots[l.i].p[l.j];
+  if(l.t==='court'){ const m=liveState.courts[l.i].match; if(!m) return null;
+    return {id:(l.team==='A'?m.teamA:m.teamB)[l.j], since:Date.now()}; }
+  return null;
+}
+function locSet(l,v){
+  if(l.t==='pool'){
+    if(l.i<liveState.pool.length){ if(v) liveState.pool[l.i]=v; else liveState.pool.splice(l.i,1); }
+    else if(v) liveState.pool.push(v);
+  }else if(l.t==='slot'){ liveState.slots[l.i].p[l.j]=v; }
+  else if(l.t==='court'){ const m=liveState.courts[l.i].match; (l.team==='A'?m.teamA:m.teamB)[l.j]=v.id; }
+}
+function doSwap(a,b){
+  const va=locGet(a), vb=locGet(b);
+  if((a.t==='court'&&!vb)||(b.t==='court'&&!va)){ toast('場上位置不能留空'); return; }
+  if(!va&&!vb) return;
+  locSet(b,va); locSet(a,vb);
+  liveState.pool.sort((x,y)=>x.since-y.since);
+  saveLive();
+}
+/* ---- 球場操作 ---- */
+window.liveStart = ci=>{
+  if(!isMgr()) return;
+  const m=liveState.courts[ci].match;
+  if(!m || m.startedAt) return;
+  m.startedAt=Date.now();
+  liveState.daySeq=(liveState.daySeq||0)+1;
+  m.seq=liveState.daySeq;
+  speak(`第 ${m.seq} 場，場地 ${liveState.courts[ci].label}。`
+    +`${mname(m.teamA[0])}、${mname(m.teamA[1])}，對上，${mname(m.teamB[0])}、${mname(m.teamB[1])}，比賽開始`);
+  saveLive();
+};
+window.liveAbort = async ci=>{
+  if(!isMgr()) return;
+  const m=liveState.courts[ci].match; if(!m) return;
+  if(!await askConfirm(`取消場地 ${liveState.courts[ci].label} 的${m.startedAt?'比賽':'預排'}？此場不計分`)) return;
+  [...m.teamA,...m.teamB].forEach(id=>liveState.pool.push({id,since:Date.now()}));
+  if(m.seq && m.seq===liveState.daySeq) liveState.daySeq--;
+  liveState.courts[ci].match=null;
+  fillAndAdvance(); saveLive();
+};
+window.liveEnd = async ci=>{
+  if(!isMgr()) return;
+  const m=liveState.courts[ci].match; if(!m||!m.startedAt) return;
+  const sc=await askScore(`場地 ${liveState.courts[ci].label} — 輸入比分`,
+      m.teamA.map(mname).join('、'), m.teamB.map(mname).join('、'));
+  if(!sc) return;
+  const delta=await applyEloCloud(m.teamA, m.teamB, sc.a, sc.b);
+  if(delta===null) return;
+  await safeWrite(()=>addDoc(matchesCol(), {
+    t:Date.now(), dateStr:todayStr(), court:liveState.courts[ci].label, seq:m.seq||0,
+    teamA:m.teamA, teamB:m.teamB, a:m.teamA.map(mname).join('、'), b:m.teamB.map(mname).join('、'),
+    sa:sc.a, sb:sc.b, delta:(sc.a>sc.b?'+':'-')+delta
+  }));
+  liveState.lastPairs=[pairKeyOf(m.teamA,m.teamB), ...(liveState.lastPairs||[])].slice(0,4);
+  [...m.teamA,...m.teamB].forEach(id=>liveState.pool.push({id,since:Date.now()}));
+  liveState.courts[ci].match=null;
+  fillAndAdvance(); saveLive();
+};
+async function applyEloCloud(teamA,teamB,sa,sb){
+  await refreshMembers();
+  const ra=(melo(teamA[0])+melo(teamA[1]))/2, rb=(melo(teamB[0])+melo(teamB[1]))/2;
+  const ea=1/(1+Math.pow(10,(rb-ra)/400));
+  const mov=1+Math.abs(sa-sb)/Math.max(sa,sb);
+  const aW=sa>sb;
+  const delta=Math.max(1,Math.round(K*mov*Math.abs((aW?1:0)-ea)));
+  const ok=await safeWrite(async ()=>{
+    for(const id of teamA){ const m=membersCache.find(x=>x.id===id); if(!m) continue;
+      await updateDoc(doc(membersCol(),id), {elo:(m.elo??START_ELO)+(aW?delta:-delta),
+        wins:(m.wins||0)+(aW?1:0), losses:(m.losses||0)+(aW?0:1), matches:(m.matches||0)+1}); }
+    for(const id of teamB){ const m=membersCache.find(x=>x.id===id); if(!m) continue;
+      await updateDoc(doc(membersCol(),id), {elo:(m.elo??START_ELO)+(aW?-delta:delta),
+        wins:(m.wins||0)+(aW?0:1), losses:(m.losses||0)+(aW?1:0), matches:(m.matches||0)+1}); }
+  });
+  if(!ok) return null;
+  await refreshMembers();
+  return delta;
+}
+/* ---- 比分輸入視窗 ---- */
+let sd=null;
+function askScore(title,nameA,nameB){
+  return new Promise(res=>{
+    sd={a:21,b:15};
+    $('sdTitle').textContent=title;
+    $('sdNameA').textContent=nameA; $('sdNameB').textContent=nameB;
+    $('sdA').textContent=sd.a; $('sdB').textContent=sd.b;
+    $('scoreDlg').classList.add('show');
+    $('sdOk').onclick=()=>{ if(sd.a===sd.b){ toast('比分不能相同'); return; }
+      $('scoreDlg').classList.remove('show'); res({a:sd.a,b:sd.b}); };
+    $('sdCancel').onclick=()=>{ $('scoreDlg').classList.remove('show'); res(null); };
+  });
+}
+window.sdBump=(k,d)=>{ sd[k]=Math.min(30,Math.max(0,sd[k]+d)); $('sd'+k.toUpperCase()).textContent=sd[k]; };
+/* ---- 現場設定 ---- */
+window.liveCourtCount = n=>{ if(!isMgr()) return;
+  for(let i=n;i<4;i++){ const m=liveState.courts[i].match;
+    if(m){ [...m.teamA,...m.teamB].forEach(id=>liveState.pool.push({id,since:Date.now()})); liveState.courts[i].match=null; } }
+  liveState.courtCount=n; fillAndAdvance(); saveLive(); };
+window.liveSlotCount = n=>{ if(!isMgr()) return;
+  for(let i=n;i<4;i++){ const s=liveState.slots[i];
+    s.p.forEach(x=>{ if(x) liveState.pool.push(x); }); s.p=[null,null,null,null]; }
+  liveState.slotCount=n; liveState.pool.sort((a,b)=>a.since-b.since); fillAndAdvance(); saveLive(); };
+window.livePause = ()=>{ if(!isMgr()) return; liveState.paused=!liveState.paused; if(!liveState.paused) fillAndAdvance(); saveLive(); };
+window.liveRename = async ci=>{ if(!isMgr()) return;
+  const v=await askInput(`場地編號（目前：${liveState.courts[ci].label}）`,'text');
+  if(!v||!v.trim()) return; liveState.courts[ci].label=v.trim().slice(0,6); saveLive(); };
+window.liveReset = async ()=>{ if(!isMgr()) return;
+  if(!await askConfirm('結束今天？現場名單全部清空（積分與對戰紀錄保留）')) return;
+  const keep=liveState.courts.map(c=>c.label);
+  const cc=liveState.courtCount, scnt=liveState.slotCount;
+  liveState=defaultLive();
+  liveState.courts.forEach((c,i)=>c.label=keep[i]);
+  liveState.courtCount=cc; liveState.slotCount=scnt;
+  saveLive(); };
+/* ---- 語音（裝置各自設定） ---- */
+function voiceOn(){ return localStorage.getItem('bm2_voice')!=='off'; }
+window.liveVoice = ()=>{ localStorage.setItem('bm2_voice', voiceOn()?'off':'on'); renderLive(); if(voiceOn()) speak('語音播報已開啟'); };
+function speak(t){ if(!voiceOn()) return; try{ speechSynthesis.cancel(); const u=new SpeechSynthesisUtterance(t); u.lang='zh-TW'; u.rate=0.95; speechSynthesis.speak(u); }catch(e){} }
+/* ---- 現場畫面 ---- */
+function renderLive(){
+  const box=$('liveView'); if(!box) return;
+  if(!liveState){ box.innerHTML='<div class="card"><div class="sub">載入中…</div></div>'; return; }
+  const st=liveState, mgr=isMgr();
+  const seg=(cur,fn)=>Array.from({length:4},(_,k)=>`<button class="mini${k+1===cur?' act':''}" onclick="${fn}(${k+1})">${k+1}</button>`).join('');
+  let html='';
+  if(mgr){
+    html+=`<div class="card"><div class="row">
+      <span class="sub">場地數</span>${seg(st.courtCount,'liveCourtCount')}
+      <span class="sub">等待格</span>${seg(st.slotCount,'liveSlotCount')}
+      <button class="mini${st.paused?' red':''}" onclick="livePause()">${st.paused?'▶ 恢復排場':'⏸ 暫停排場'}</button>
+      <button class="mini" onclick="liveVoice()">${voiceOn()?'🔊 語音開':'🔇 語音關'}</button>
+      <button class="mini act" onclick="toggleCheckin()">✅ 簽到</button>
+      <button class="mini red" onclick="liveReset()">🌅 結束今天</button>
+    </div>
+    ${st.paused?'<div class="notice">已暫停自動排場</div>':''}
+    <div class="sub">💡 點兩位球員可互換位置（場上／等待格／排隊區皆可），點空位可把選取的球員移入</div>
+    <div id="checkinBox" class="hide"></div>
+    </div>`;
+  }
+  html+='<div class="card"><h2>🏸 球場</h2>';
+  for(let i=0;i<st.courtCount;i++){
+    const c=st.courts[i], m=c.match;
+    html+=`<div class="divider" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+      <b style="color:var(--txt);${mgr?'cursor:pointer;':''}" ${mgr?`onclick="liveRename(${i})"`:''}>場地 ${esc(c.label)}${mgr?' ✎':''}</b>`;
+    if(!m){ html+=`<span class="sub">${st.paused?'已暫停':'空場（等待一滿員自動遞補）'}</span></div>`; continue; }
+    const started=!!m.startedAt;
+    html+= started? `<span class="tag t-main">第 ${m.seq} 場・已進行 ${fmtWait(Date.now()-m.startedAt)}</span></div>`
+                  : `<span class="tag t-promo">準備中</span></div>`;
+    const team=(ids,tn)=>ids.map((id,j)=>{
+      const seld=sameLoc(liveSel,{t:'court',i,j,team:tn});
+      return `<span class="pchip${seld?' selchip':''}" ${mgr?`onclick="liveTap('court',${i},${j},'${tn}')"`:''}>${esc(mname(id))}<small>${melo(id)}</small></span>`;
+    }).join('');
+    html+=`<div class="row">${team(m.teamA,'A')}<span class="sub"><b>VS</b></span>${team(m.teamB,'B')}</div>`;
+    if(mgr){
+      html+= started
+        ? `<div class="row"><button class="ok" style="flex:1;font-size:18px;" onclick="liveEnd(${i})">比賽結束</button><button class="mini red" onclick="liveAbort(${i})">取消比賽</button></div>`
+        : `<div class="row"><button class="pri" style="flex:1;font-size:18px;" onclick="liveStart(${i})">▶ 開始比賽</button><button class="mini red" onclick="liveAbort(${i})">取消預排</button></div>`;
+    }
+  }
+  html+='</div>';
+  const zh=['一','二','三','四'];
+  html+='<div class="card"><h2>⏳ 等待場次</h2>';
+  for(let i=0;i<st.slotCount;i++){
+    const s=st.slots[i];
+    const cell=j=>{
+      const v=s.p[j];
+      if(!v) return `<span class="emptycell" ${mgr?`onclick="liveTap('slot',${i},${j},'')"`:''}>空位</span>`;
+      const selfCell=session.me.id===v.id;
+      const seld=sameLoc(liveSel,{t:'slot',i,j,team:''});
+      const xbtn=(mgr||selfCell)?`<button class="mini red" style="padding:2px 8px;" onclick="event.stopPropagation();slotCancel(${i},${j})">✕</button>`:'';
+      return `<span class="pchip${seld?' selchip':''}" ${mgr?`onclick="liveTap('slot',${i},${j},'')"`:''}>${esc(mname(v.id))}<small>${melo(v.id)}</small>${xbtn}</span>`;
+    };
+    const partial=s.p.some(x=>x)&&s.p.some(x=>!x);
+    html+=`<div class="divider"><b style="color:var(--txt);">等待${zh[i]}</b> ${partial?'<span class="tag t-wait">缺人，請協調遞補</span>':''}</div>
+      <div class="row">${cell(0)}${cell(1)}<span class="sub"><b>VS</b></span>${cell(2)}${cell(3)}</div>`;
+  }
+  html+='</div>';
+  st.pool.sort((a,b)=>a.since-b.since);
+  html+=`<div class="card"><h2>🚶 排隊區（${st.pool.length} 人）</h2>`;
+  html+=st.pool.map((p,i)=>{
+    const seld=sameLoc(liveSel,{t:'pool',i,j:0,team:''});
+    return `<div class="item"><span class="num">${i+1}</span>
+      <span class="pchip${seld?' selchip':''}" ${mgr?`onclick="liveTap('pool',${i},0,'')"`:''}>${esc(mname(p.id))}<small>${melo(p.id)}</small></span>
+      <span class="sub">等 ${fmtWait(Date.now()-p.since)}</span><div class="spacer"></div>
+      ${(mgr||session.me.id===p.id)?`<button class="mini" onclick="liveRest('${p.id}')">休息</button>`:''}
+      ${mgr?`<button class="mini red" onclick="liveLeave('${p.id}')">離場</button>`:''}
+    </div>`;
+  }).join('')||'<div class="sub">尚無等待球員'+(mgr?'，請按上方「✅ 簽到」':'')+'</div>';
+  html+='</div>';
+  html+=`<div class="card"><h2>😴 休息區（${st.resting.length} 人）</h2>`;
+  html+=st.resting.map(id=>`<div class="item"><span class="nm">${esc(mname(id))}</span>
+    ${(mgr||session.me.id===id)?`<button class="mini act" onclick="liveUnrest('${id}')">回排隊區</button>`:''}
+    ${mgr?`<button class="mini red" onclick="liveLeave('${id}')">離場</button>`:''}</div>`).join('')||'<div class="sub">無人休息</div>';
+  html+='</div>';
+  box.innerHTML=html;
+  if(mgr && checkinOpen) renderCheckin();
+}
+window.toggleCheckin=()=>{ checkinOpen=!checkinOpen; renderLive(); };
+function renderCheckin(){
+  const el=$('checkinBox'); if(!el) return;
+  el.classList.remove('hide');
+  const occ=occupiedIds();
+  const ev=Object.values(eventCache).find(e=>e.dateStr===todayStr());
+  const list=ev?(signupCache[ev.id]||[]):[];
+  const rows=list.filter(s=>!occ.has(s.memberId)).map(s=>
+    `<button class="mini act" onclick="liveCheckIn('${s.memberId}')">＋ ${esc(s.name)}</button>`).join(' ');
+  const others=membersCache.filter(m=>!occ.has(m.id) && !list.some(s=>s.memberId===m.id));
+  el.innerHTML=`<div class="divider">今日報名名單（點名字簽到）</div>
+    <div class="row">${rows||'<span class="sub">'+(ev?'報名者皆已簽到':'今天沒有報名資料，可用下方清單簽到')+'</span>'}</div>
+    <div class="divider">其他成員（臨時加入）</div>
+    <div class="row"><select id="ciSel">${others.map(m=>`<option value="${m.id}">${esc(m.name)}</option>`).join('')}</select>
+    <button class="mini act" onclick="liveCheckIn(document.getElementById('ciSel').value)">簽到</button></div>`;
+}
+setInterval(()=>{ if(session && liveState && $('liveView') && !$('liveView').classList.contains('hide')) renderLive(); }, 30000);
+
+/* ================= 排行與紀錄 ================= */
+async function renderRank(){
+  const box=$('rankView'); if(!box) return;
+  box.innerHTML='<div class="card"><div class="sub">載入中…</div></div>';
+  await refreshMembers();
+  lastHist=[];
+  try{
+    const snap=await getDocs(query(matchesCol(), orderBy('t','desc')));
+    lastHist=snap.docs.map(d=>({id:d.id,...d.data()}));
+  }catch(e){ console.error(e); }
+  const list=[...membersCache].sort((a,b)=>(b.elo??START_ELO)-(a.elo??START_ELO));
+  const t0=new Date(); t0.setHours(0,0,0,0);
+  const today=lastHist.filter(h=>h.t>=t0.getTime());
+  const mgr=isMgr();
+  box.innerHTML=`
+  <div class="card"><h2>📊 積分排行</h2>
+    <table style="width:100%;border-collapse:collapse;font-size:15px;">
+      <tr style="color:var(--sub);font-size:13px;"><td>名次</td><td>姓名</td><td style="text-align:center;">積分</td><td style="text-align:center;">勝</td><td style="text-align:center;">敗</td><td style="text-align:center;">勝率</td></tr>
+      ${list.map((m,i)=>`<tr style="border-top:1px solid var(--line);">
+        <td style="padding:8px 4px;">${i+1}</td><td>${esc(m.name)}</td>
+        <td style="text-align:center;"><b>${m.elo??START_ELO}</b></td>
+        <td style="text-align:center;">${m.wins||0}</td><td style="text-align:center;">${m.losses||0}</td>
+        <td style="text-align:center;">${m.matches?Math.round((m.wins||0)/m.matches*100)+'%':'—'}</td></tr>`).join('')}
+    </table>
+  </div>
+  <div class="card"><h2>今日對戰紀錄（${today.length} 場）</h2>
+    ${today.map(h=>`<div class="item">
+      <span class="nm"><b>場地${esc(h.court)}</b>｜${esc(h.a)} <b style="color:var(--teal);">${h.sa}:${h.sb}</b> ${esc(h.b)} <span class="sub">±${String(h.delta).replace(/[+\-]/,'')}</span></span>
+      ${mgr?`<button class="mini" onclick="editMatch('${h.id}')">✎ 修改</button><button class="mini red" onclick="delMatch('${h.id}')">刪除</button>`:''}
+    </div>`).join('')||'<div class="sub">今日尚無紀錄</div>'}
+  </div>
+  <div class="card"><h2>ℹ️ 積分怎麼算（Elo 制）</h2>
+    <div style="font-size:15px;line-height:1.8;">
+      <p>1. 每人初始 <b>1500</b> 分，隊伍實力＝兩人積分的平均。</p>
+      <p>2. 每場結束依「賽前的預期勝率」加減分：<b>爆冷贏強隊加很多、贏弱隊只加一點</b>；輸球反向扣分，勝負雙方加減的分數相同。</p>
+      <p>3. <b>分差加成</b>：險勝（21:19）加成低、大勝（21:5）加成高，最高約 2 倍。</p>
+      <p>4. 公式：變動分 = 32 ×（1＋分差÷勝方得分）×（實際結果－預期勝率）；預期勝率 = 1／(1＋10^((對方隊均分－我方隊均分)÷400))。</p>
+      <p class="sub">實例：同實力對戰 21:19 → 贏家每人 +18；21:5 → +28；弱隊（隊均 1400）爆冷贏強隊（隊均 1650）21:15 → +33；反之強隊險勝弱隊只 +8。</p>
+      <p class="sub">任何一場紀錄被修改或刪除後，系統會依全部紀錄從頭重新計算所有人的積分，確保公平。</p>
+    </div>
+  </div>`;
+}
+window.editMatch = async id=>{
+  if(!isMgr()) return;
+  const h=lastHist.find(x=>x.id===id); if(!h) return;
+  const v=await askInput(`修改比分（目前 ${h.sa}:${h.sb}，格式如 21:15）`,'text');
+  if(!v) return;
+  const mch=v.trim().match(/^(\d{1,2})[:：](\d{1,2})$/);
+  if(!mch){ toast('格式錯誤，請輸入如 21:15'); return; }
+  const sa=+mch[1], sb=+mch[2];
+  if(sa===sb){ toast('比分不能相同'); return; }
+  await safeWrite(()=>updateDoc(doc(matchesCol(),id),{sa,sb}));
+  await recalcAll(); renderRank();
+};
+window.delMatch = async id=>{
+  if(!isMgr()) return;
+  if(!await askConfirm('刪除此場次紀錄？所有人積分將重新計算')) return;
+  await safeWrite(()=>deleteDoc(doc(matchesCol(),id)));
+  await recalcAll(); renderRank();
+};
+async function recalcAll(){
+  toast('積分重新計算中…');
+  const snap=await getDocs(query(matchesCol(), orderBy('t')));
+  await refreshMembers();
+  const map={}; membersCache.forEach(m=>map[m.id]={elo:START_ELO,w:0,l:0,n:0});
+  const deltaFix=[];
+  for(const d of snap.docs){
+    const h=d.data();
+    if([...h.teamA,...h.teamB].some(id=>!map[id])) continue;   // 成員已刪除 → 跳過
+    const ra=(map[h.teamA[0]].elo+map[h.teamA[1]].elo)/2, rb=(map[h.teamB[0]].elo+map[h.teamB[1]].elo)/2;
+    const ea=1/(1+Math.pow(10,(rb-ra)/400));
+    const mov=1+Math.abs(h.sa-h.sb)/Math.max(h.sa,h.sb);
+    const aW=h.sa>h.sb;
+    const delta=Math.max(1,Math.round(K*mov*Math.abs((aW?1:0)-ea)));
+    h.teamA.forEach(id=>{ map[id].elo+=aW?delta:-delta; aW?map[id].w++:map[id].l++; map[id].n++; });
+    h.teamB.forEach(id=>{ map[id].elo+=aW?-delta:delta; aW?map[id].l++:map[id].w++; map[id].n++; });
+    const nd=(aW?'+':'-')+delta;
+    if(nd!==h.delta) deltaFix.push({ref:d.ref, delta:nd});
+  }
+  await safeWrite(async ()=>{
+    for(const m of membersCache){
+      const v=map[m.id];
+      await updateDoc(doc(membersCol(),m.id),{elo:v.elo,wins:v.w,losses:v.l,matches:v.n});
+    }
+    for(const f of deltaFix) await updateDoc(f.ref,{delta:f.delta});
+  },'積分已重新計算完成');
+  await refreshMembers();
+}
+
 </script>
 </body>
 </html>
