@@ -20,7 +20,56 @@
   .spacer{flex:1;}
   .hbtn{padding:10px 16px; background:var(--panel2);}
   .hbtn.on{background:var(--blue);}
-  main{padding:14px; max-width:760px; margin:0 auto;}
+  main{padding:14px; max-width:1000px; margin:0 auto;}
+  /* 球場看板 */
+  #courtsWrap{display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:12px;}
+  .courtboard{background:var(--panel2); border:1px solid var(--line); border-radius:14px; padding:12px;}
+  .cb-head{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:4px;}
+  .cb-teams{display:flex; gap:8px; align-items:stretch; margin:8px 0;}
+  .cb-vs{align-self:center; font-weight:900; font-size:20px; color:var(--sub);}
+  .cb-team{flex:1 1 0; min-width:0; border-radius:12px; padding:10px; display:flex; flex-direction:column; gap:8px;
+    background:var(--panel); border:1px solid var(--line);}
+  .cb-team{container-type:inline-size;}
+  .cb-team .pchip{background:var(--panel2); width:100%; min-width:0; justify-content:space-between; align-items:center; padding:8px 10px;}
+  .cbp-txt{display:flex; flex-direction:column; line-height:1.2; text-align:left; min-width:0; flex:1;}
+  .cbp-name{font-size:clamp(15px,17cqw,30px); font-weight:800; color:var(--txt);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%;}
+  .cbp-elo{font-size:12px; color:var(--sub); font-weight:400;}
+  .cbx{background:var(--panel); border:1px solid var(--line); color:var(--sub); border-radius:10px;
+    min-width:34px; height:34px; font-size:15px; margin-left:10px; padding:0;}
+  .cbx.sm{min-width:26px; height:26px; font-size:12px; border-radius:8px; margin-left:6px;}
+  .cb-team .emptycell{width:100%; justify-content:center; padding:14px; font-size:16px;}
+  /* 底部功能列（手機） */
+  #botbar{display:none; position:fixed; bottom:0; left:0; right:0; background:var(--panel);
+    border-top:1px solid var(--line); z-index:45;}
+  #botbar button{flex:1; background:transparent; color:var(--sub);
+    padding:8px 2px calc(10px + env(safe-area-inset-bottom)); font-size:11px; border-radius:0;
+    display:flex; flex-direction:column; gap:2px; align-items:center;}
+  #botbar button .ic{font-size:20px; display:flex;}
+  .lni{width:18px; height:18px; vertical-align:-3px;}
+  #botbar .ic .lni{width:22px; height:22px;}
+  #botbar button.on{color:#fff; background:var(--blue);}
+  #botbar button.hide{display:none;}
+  #navBack.hide{display:none !important;}
+  @media (max-width:700px){
+    header .hbtn{display:none;}
+    #evBind .hbtn{display:block;}
+    #navBack{display:block;}
+    #botbar.ready{display:flex;}
+    main{padding-bottom:96px;}
+  }
+  @media (max-height:500px){
+    header .hbtn{display:none;}
+    #evBind .hbtn{display:block;}
+    #navBack{display:block;}
+    #botbar.ready{display:flex; flex-direction:column; top:0; bottom:0; left:0; right:auto; width:72px;
+      border-top:none; border-right:1px solid var(--line); justify-content:flex-start; padding-top:6px;}
+    #botbar button{flex:0 0 auto; padding:10px 2px;}
+    main{padding-left:86px; padding-bottom:14px;}
+    header{padding-left:86px;}
+    .cb-team .pchip{padding:6px 8px;}
+    .cbx{min-width:28px; height:28px; font-size:13px;}
+  }
   .card{background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:14px; margin-bottom:14px;}
   .card h2{margin:0 0 10px; font-size:17px;}
   .sub{color:var(--sub); font-size:13px;}
@@ -59,7 +108,8 @@
   .errbar{background:var(--red); color:#fff; text-align:center; padding:10px; font-size:15px; display:none;}
   .errbar.show{display:block;}
   .tabs{display:flex; background:var(--panel2); border-radius:12px; overflow:hidden; margin-bottom:14px;}
-  .tabs button{flex:1; background:transparent; padding:12px 4px; font-size:15px; color:var(--sub); border-radius:0;}
+  .tabs button{flex:1; background:transparent; padding:12px 4px; font-size:15px; color:var(--sub); border-radius:0;
+    display:flex; align-items:center; justify-content:center; gap:5px;}
   .tabs button.on{background:var(--blue); color:#fff; font-weight:700;}
   .hide{display:none;}
   .overlay{position:fixed; inset:0; background:rgba(0,0,0,.6); display:none; align-items:center; justify-content:center; z-index:50; padding:16px;}
@@ -93,7 +143,7 @@
   <h1>🏸 <span id="teamName"></span></h1>
   <span class="sub" id="whoami"></span>
   <div class="spacer"></div>
-  <button class="hbtn hide" id="navBack" onclick="backToAdmin()">⬅ 總覽</button>
+  <button class="hbtn hide" id="navBack" onclick="backToAdmin()"><svg class="lni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> 總覽</button>
   <div id="evBind" class="hide" style="position:relative;">
     <button class="hbtn" onclick="toggleBindMenu(event)" style="text-align:left;line-height:1.3;padding:6px 14px;">
       <span id="ebLine1" style="font-size:15px;"></span> ▾<br>
@@ -103,13 +153,13 @@
       border:1px solid var(--line);border-radius:12px;min-width:250px;z-index:60;
       box-shadow:0 8px 24px rgba(0,0,0,.5);max-height:60vh;overflow:auto;"></div>
   </div>
-  <button class="hbtn" id="navLive" onclick="showView('live')">🏟 現場</button>
-  <button class="hbtn hide" id="navCheckin" onclick="openCheckin()">✅ 簽到</button>
+  <button class="hbtn" id="navLive" onclick="showView('live')"><svg class="lni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><line x1="12" y1="5" x2="12" y2="19"/><line x1="3" y1="12" x2="21" y2="12"/></svg> 現場</button>
+  <button class="hbtn hide" id="navCheckin" onclick="showView('checkin')"><svg class="lni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.5 2.5L16 9.5"/></svg> 簽到</button>
   <span id="navDiv" class="hide" style="width:2px;align-self:stretch;margin:6px 4px;background:#475569;border-radius:1px;"></span>
-  <button class="hbtn on" id="navSignup" onclick="showView('signup')">📅 報名</button>
-  <button class="hbtn" id="navRank" onclick="showView('rank')">📊 排行</button>
-  <button class="hbtn hide" id="navManage" onclick="showView('manage')">🛠 管理</button>
-  <button class="hbtn" id="btnPw" onclick="changeMyPw()">🔑 改密碼</button>
+  <button class="hbtn on" id="navSignup" onclick="showView('signup')"><svg class="lni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg> 報名</button>
+  <button class="hbtn" id="navRank" onclick="showView('rank')"><svg class="lni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="20" x2="6" y2="13"/><line x1="12" y1="20" x2="12" y2="5"/><line x1="18" y1="20" x2="18" y2="10"/></svg> 排行</button>
+  <button class="hbtn hide" id="navManage" onclick="showView('manage')"><svg class="lni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="7" x2="20" y2="7"/><circle cx="9" cy="7" r="2.4"/><line x1="4" y1="17" x2="20" y2="17"/><circle cx="15" cy="17" r="2.4"/></svg> 管理</button>
+  <button class="hbtn" id="btnPw" onclick="changeMyPw()"><svg class="lni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="16" r="4"/><path d="M11 13L20 4"/><path d="M16.5 7.5l3 3"/></svg> 改密碼</button>
   <button class="hbtn" onclick="logout()">登出</button>
 </header>
 
@@ -128,11 +178,31 @@
 
 <main id="appView" class="hide">
   <div id="signupView"></div>
+  <div id="checkinView" class="hide"></div>
   <div id="liveView" class="hide"></div>
   <div id="rankView" class="hide"></div>
   <div id="manageView" class="hide"></div>
   <div id="adminView" class="hide"></div>
 </main>
+
+<nav id="botbar">
+  <button id="bNavLive" onclick="showView('live')"><span class="ic"><svg class="lni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><line x1="12" y1="5" x2="12" y2="19"/><line x1="3" y1="12" x2="21" y2="12"/></svg></span>現場</button>
+  <button id="bNavCheckin" onclick="showView('checkin')"><span class="ic"><svg class="lni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.5 2.5L16 9.5"/></svg></span>簽到</button>
+  <button id="bNavSignup" onclick="showView('signup')"><span class="ic"><svg class="lni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg></span>報名</button>
+  <button id="bNavRank" onclick="showView('rank')"><span class="ic"><svg class="lni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="20" x2="6" y2="13"/><line x1="12" y1="20" x2="12" y2="5"/><line x1="18" y1="20" x2="18" y2="10"/></svg></span>排行</button>
+  <button id="bNavManage" class="hide" onclick="showView('manage')"><span class="ic"><svg class="lni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="7" x2="20" y2="7"/><circle cx="9" cy="7" r="2.4"/><line x1="4" y1="17" x2="20" y2="17"/><circle cx="15" cy="17" r="2.4"/></svg></span>管理</button>
+  <button onclick="openMore()"><span class="ic"><svg class="lni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg></span>更多</button>
+</nav>
+
+<div class="overlay" id="moreDlg">
+  <div class="dlgbox" style="max-width:340px;">
+    <div class="dlgbtns" style="flex-direction:column;margin-top:0;">
+      <button class="cancel" onclick="closeMore();changeMyPw()"><svg class="lni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="16" r="4"/><path d="M11 13L20 4"/><path d="M16.5 7.5l3 3"/></svg> 改密碼</button>
+      <button class="danger" onclick="logout()">登出</button>
+      <button class="cancel" onclick="closeMore()">關閉</button>
+    </div>
+  </div>
+</div>
 
 <div class="overlay" id="evsetDlg">
   <div class="dlgbox">
@@ -143,13 +213,6 @@
       <button class="cancel" onclick="closeEvSet()">取消</button>
       <button class="ok" onclick="saveEvSet()">儲存</button>
     </div>
-  </div>
-</div>
-<div class="overlay" id="checkinDlg">
-  <div class="dlgbox" style="width:min(560px,100%);max-height:85vh;overflow:auto;">
-    <div class="msg" style="font-weight:700;">✅ 簽到 — 請點自己名字旁的「簽到」</div>
-    <div id="checkinList"></div>
-    <div class="dlgbtns"><button class="cancel" onclick="closeCheckin()">關閉</button></div>
   </div>
 </div>
 <div class="overlay" id="scoreDlg">
@@ -206,7 +269,7 @@ const firebaseConfig = {
   messagingSenderId: "223475807993",
   appId: "1:223475807993:web:e62e327f9a8ae43e479428"
 };
-const APP_VER='v2.5.7（2026-07-23）';
+const APP_VER='v2.7.0（2026-07-23）';
 document.getElementById('verTag').textContent='版本 '+APP_VER;
 const fbApp = initializeApp(firebaseConfig);
 const db = getFirestore(fbApp);
@@ -245,6 +308,11 @@ document.addEventListener('keydown',e=>{
      && !document.getElementById('dlgInput').classList.contains('hide')) document.getElementById('dlgOk').click();
 });
 function todayStr(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function fmtTs(ts){
+  if(!ts||!ts.toDate) return '—';
+  const d=ts.toDate();
+  return (d.getMonth()+1)+'/'+d.getDate()+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+}
 function fmtDate(s){
   const [y,m,d]=s.split('-').map(Number);
   const w=['日','一','二','三','四','五','六'][new Date(y,m-1,d).getDay()];
@@ -291,6 +359,7 @@ onAuthStateChanged(auth, async user=>{
     const mDoc = await getDoc(doc(db,'teams',saved.teamId,'members',saved.me.id));
     if(mDoc.exists()){
       session={...saved, me:{id:mDoc.id, name:mDoc.data().name, role:mDoc.data().role}};
+      updateDoc(doc(db,'teams',saved.teamId,'members',mDoc.id),{lastLogin:serverTimestamp()}).catch(()=>{});
       enterApp(); return;
     }
   }
@@ -339,6 +408,7 @@ window.doLogin = async ()=>{
     session={ teamId:tid, teamName:teams.find(t=>t.id===tid).name,
               me:{id:d.id, name:d.data().name, role:d.data().role} };
     localStorage.setItem('bm2_session', JSON.stringify(session));
+    updateDoc(doc(db,'teams',tid,'members',d.id),{lastLogin:serverTimestamp()}).catch(()=>{});
     $('loginPw').value=''; $('loginName').value='';
     enterApp();
   }catch(e){ toast('❌ 登入失敗：'+e.message); }
@@ -364,6 +434,8 @@ async function enterApp(){
   $('navRank').classList.remove('hide');
   $('navCheckin').classList.remove('hide');
   $('navDiv').classList.remove('hide');
+  $('botbar').classList.add('ready');
+  $('bNavManage').classList.toggle('hide', session.me.role!=='manager');
   await refreshMembers();
   await refreshVenues();
   watchEvents();
@@ -380,6 +452,7 @@ async function enterAdmin(){
   $('navSignup').classList.add('hide');
   $('navCheckin').classList.add('hide');
   $('navDiv').classList.add('hide');
+  $('botbar').classList.remove('ready');
   $('evBind').classList.add('hide');
   $('navLive').classList.add('hide');
   $('navRank').classList.add('hide');
@@ -435,7 +508,7 @@ window.adminDelTeam = async (tid,name)=>{
   if(!await askConfirm(`刪除球隊「${name}」？所有成員、積分、打球日將全部刪除`)) return;
   if(!await askConfirm('再次確認：此動作無法復原！')) return;
   await safeWrite(async ()=>{
-    for(const colName of ['members','venues','events']){
+    for(const colName of ['members','venues','matches','live','events']){
       const s=await getDocs(collection(db,'teams',tid,colName));
       for(const d of s.docs){
         if(colName==='events'){
@@ -468,14 +541,21 @@ async function refreshVenues(){
   venuesCache=snap.docs.map(d=>({id:d.id, ...d.data()}))
     .sort((a,b)=>a.name.localeCompare(b.name,'zh-Hant'));
 }
+window.openMore=()=>$('moreDlg').classList.add('show');
+window.closeMore=()=>$('moreDlg').classList.remove('show');
+let currentView='signup';
 window.showView = v=>{
-  ['signup','live','rank','manage'].forEach(x=>{
+  currentView=v;
+  ['signup','checkin','live','rank','manage'].forEach(x=>{
     const el=$(x+'View'); if(el) el.classList.toggle('hide', v!==x);
     const nb=$('nav'+x[0].toUpperCase()+x.slice(1)); if(nb) nb.classList.toggle('on', v===x);
+    const bb=$('bNav'+x[0].toUpperCase()+x.slice(1)); if(bb) bb.classList.toggle('on', v===x);
   });
   if(v==='manage') renderManage();
   if(v==='live') renderLive();
   if(v==='rank') renderRank();
+  if(v==='checkin') renderCheckin();
+  if(typeof updateBindSel==='function') updateBindSel();
 };
 
 /* ---------- 打球日監聽 ---------- */
@@ -511,6 +591,7 @@ function watchEvents(){
 /* ---------- 報名頁 ---------- */
 let expandedEvs=new Set();
 window.evToggle=id=>{ expandedEvs.has(id)?expandedEvs.delete(id):expandedEvs.add(id); renderSignup(); };
+window.evCardTap=(e,id)=>{ if(e.target.closest('button,select')) return; evToggle(id); };
 function renderSignup(){
   const evs=Object.values(eventCache).sort((a,b)=>a.dateStr.localeCompare(b.dateStr));
   const box=$('signupView');
@@ -547,8 +628,8 @@ function renderSignup(){
       (myIdx<cap ? (mine.initialStatus==='wait' && !mine.confirmed ? '<div class="notice">你已從候補轉為正取！請按「確認報到」</div>' : '')
                  : '<div class="notice">你目前在候補名單，若有人取消將依序遞補</div>');
     const expanded=expandedEvs.has(ev.id);
-    return `<div class="card">
-      <div class="evhead" style="cursor:pointer;" onclick="evToggle('${ev.id}')">
+    return `<div class="card" style="cursor:pointer;" onclick="evCardTap(event,'${ev.id}')">
+      <div class="evhead">
         <span class="evdate">${fmtDate(ev.dateStr)}</span>
         <span class="evtime">${esc(ev.startStr||'')}${ev.endStr?'–'+esc(ev.endStr):''}</span>
         ${ev.venueName?`<span class="evvenue">📍${esc(ev.venueName)}</span>`:''}
@@ -597,9 +678,16 @@ window.cancelSignup = async (evId, sid, name)=>{
   if(liveState && bev && bev.id===evId) removeFromLive(sid, name);
 };
 function removeFromLive(id, name){
-  const onCourt=liveState.courts.some(c=>c.match && [...c.match.teamA,...c.match.teamB].includes(id));
-  if(onCourt){ toast(`${name} 正在場上比賽，請至「現場」處理`); return; }
   let changed=false;
+  // 場上：準備中 → 移除並留空位（待遞補）；比賽進行中 → 不動，提示處理
+  for(const c of liveState.courts){
+    const m=c.match; if(!m) continue;
+    const iA=m.teamA.indexOf(id), iB=m.teamB.indexOf(id);
+    if(iA<0 && iB<0) continue;
+    if(m.startedAt){ toast(`${name} 正在場上比賽中，請至「現場」處理`); return; }
+    if(iA>=0) m.teamA[iA]=null; else m.teamB[iB]=null;
+    changed=true;
+  }
   const n0=liveState.pool.length;
   liveState.pool=liveState.pool.filter(p=>p.id!==id);
   if(liveState.pool.length!==n0) changed=true;
@@ -613,16 +701,25 @@ window.confirmSignup = async (evId, sid)=>{
   await safeWrite(()=>updateDoc(doc(signupsCol(evId), sid), {confirmed:true, confirmedAt:serverTimestamp()}), '已確認報到');
 };
 
+/* ---------- 線條圖示 ---------- */
+const LNI_A='class="lni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"';
+const LNI={
+  cal:`<svg ${LNI_A}><rect x="3" y="4" width="18" height="17" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg>`,
+  ppl:`<svg ${LNI_A}><circle cx="9" cy="8" r="3"/><path d="M4 20c0-3 2.2-5 5-5s5 2 5 5"/><circle cx="17" cy="9" r="2.5"/><path d="M15.5 15.2c2.6.3 4.5 2 4.5 4.8"/></svg>`,
+  pin:`<svg ${LNI_A}><path d="M12 21s-6-5.3-6-10a6 6 0 1 1 12 0c0 4.7-6 10-6 10z"/><circle cx="12" cy="11" r="2.2"/></svg>`,
+  clk:`<svg ${LNI_A}><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>`,
+  set:`<svg ${LNI_A}><line x1="4" y1="7" x2="20" y2="7"/><circle cx="9" cy="7" r="2.4"/><line x1="4" y1="17" x2="20" y2="17"/><circle cx="15" cy="17" r="2.4"/></svg>`
+};
 /* ---------- 管理頁（分頁） ---------- */
 window.setManageTab = t=>{ manageTab=t; renderManage(); };
 async function renderManage(){
   const box=$('manageView');
   const tabs=`<div class="tabs">
-    <button class="${manageTab==='events'?'on':''}" onclick="setManageTab('events')">📅 打球日</button>
-    <button class="${manageTab==='members'?'on':''}" onclick="setManageTab('members')">👥 成員</button>
-    <button class="${manageTab==='venues'?'on':''}" onclick="setManageTab('venues')">🏟 球館</button>
-    <button class="${manageTab==='hist'?'on':''}" onclick="setManageTab('hist')">🕘 歷史</button>
-    <button class="${manageTab==='sys'?'on':''}" onclick="setManageTab('sys')">⚙ 系統</button>
+    <button class="${manageTab==='events'?'on':''}" onclick="setManageTab('events')">${LNI.cal} 打球日</button>
+    <button class="${manageTab==='members'?'on':''}" onclick="setManageTab('members')">${LNI.ppl} 成員</button>
+    <button class="${manageTab==='venues'?'on':''}" onclick="setManageTab('venues')">${LNI.pin} 球館</button>
+    <button class="${manageTab==='hist'?'on':''}" onclick="setManageTab('hist')">${LNI.clk} 歷史</button>
+    <button class="${manageTab==='sys'?'on':''}" onclick="setManageTab('sys')">${LNI.set} 系統</button>
   </div>`;
   let body='';
   if(manageTab==='events'){
@@ -685,7 +782,7 @@ async function renderManage(){
       ${membersCache.map(m=>`
         <div class="item">
           <span class="nm">${esc(m.name)} ${m.role==='manager'?'<span class="tag t-mgr">管理者</span>':''}</span>
-          <span class="sub">積分 ${m.elo??1500}</span>
+          <span class="sub">積分 ${m.elo??1500}｜最後登入 ${fmtTs(m.lastLogin)}</span>
           <button class="mini" onclick="toggleRole('${m.id}')">${m.role==='manager'?'降為球友':'升為管理者'}</button>
           <button class="mini" onclick="resetPw('${m.id}','${esc(m.name)}')">重設密碼</button>
           <button class="mini red" onclick="delMember('${m.id}','${esc(m.name)}')">刪除</button>
@@ -861,7 +958,7 @@ function watchLive(){
     }
     liveSel=null;
     updateBindSel();
-    if(checkinOpen) renderCheckin();
+    renderCheckin();
     if($('liveView') && !$('liveView').classList.contains('hide')) renderLive();
   }, e=>console.error(e));
 }
@@ -1160,7 +1257,7 @@ function liveEvent(){
 }
 function updateBindSel(){
   const box=$('evBind'); if(!box) return;
-  if(!session || !session.teamId){ box.classList.add('hide'); return; }
+  if(!session || !session.teamId || currentView==='signup'){ box.classList.add('hide'); return; }
   const evs=Object.values(eventCache).sort((a,b)=>a.dateStr.localeCompare(b.dateStr));
   if(!evs.length){ box.classList.add('hide'); return; }
   const bev=liveEvent();
@@ -1183,7 +1280,6 @@ window.liveBind = evId=>{
   if(!evId || boundEventId===evId) return;
   boundEventId=evId;
   watchLive();                                   // 載入該打球日自己的現場資料
-  if(checkinOpen) renderCheckin();
 };
 let evSet=null;
 window.openEvSet = evId=>{
@@ -1243,31 +1339,41 @@ function renderLive(){
   const st=liveState, mgr=isMgr();
   let html='';
   if(st.paused) html+='<div class="notice" style="margin-bottom:12px;">⏸ 已暫停自動排場（管理 → ⚙ 系統 可恢復）</div>';
-  html+='<div class="card"><h2>🏸 球場</h2>';
+  if(liveSel){
+    const sv=locGet(liveSel);
+    if(sv) html+=`<div class="notice" style="margin-bottom:12px;">👉 已選取「${esc(mname(sv.id))}」：點另一人互換、點空位移入，或再點他一次取消選取</div>`;
+    else liveSel=null;
+  }
+  html+='<div class="card"><h2>🏸 球場</h2><div id="courtsWrap">';
   for(let i=0;i<st.courtCount;i++){
     const c=st.courts[i], m=c.match;
-    html+=`<div class="divider" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-      <b style="color:var(--txt);${mgr?'cursor:pointer;':''}" ${mgr?`onclick="liveRename(${i})"`:''}>場地 ${esc(c.label)}${mgr?' ✎':''}</b>`;
-    if(!m){ html+=`<span class="sub">${st.paused?'已暫停':'空場（等待一滿員自動遞補）'}</span></div>`; continue; }
+    let cb=`<div class="courtboard"><div class="cb-head">
+      <b style="font-size:18px;color:var(--txt);${mgr?'cursor:pointer;':''}" ${mgr?`onclick="liveRename(${i})"`:''}>場地 ${esc(c.label)}${mgr?' ✎':''}</b>`;
+    if(!m){
+      cb+=`</div><div class="sub" style="text-align:center;padding:26px 0;">${st.paused?'已暫停':'空場（等待一滿員自動遞補）'}</div></div>`;
+      html+=cb; continue;
+    }
     const started=!!m.startedAt;
-    html+= started? `<span class="tag t-main">第 ${m.seq} 場・已進行 ${fmtWait(Date.now()-m.startedAt)}</span></div>`
-                  : `<span class="tag t-promo">準備中</span></div>`;
-    const team=(ids,tn)=>ids.map((id,j)=>{
+    cb+= started? `<span class="tag t-main">第 ${m.seq} 場・${fmtWait(Date.now()-m.startedAt)}</span></div>`
+                : `<span class="tag t-promo">準備中</span></div>`;
+    const team=(ids,tn)=>`<div class="cb-team ${tn==='A'?'a':'b'}">`+ids.map((id,j)=>{
       const attrs=`data-lt="court" data-li="${i}" data-lj="${j}" data-lteam="${tn}"`;
-      if(!id) return `<span class="emptycell" ${attrs} style="border-color:var(--amber);color:var(--amber);" ${mgr?`onclick="liveTap('court',${i},${j},'${tn}')"`:''}>空位(待遞補)</span>`;
+      if(!id) return `<span class="emptycell" ${attrs} style="border-color:var(--amber);color:#fcd34d;" ${mgr?`onclick="liveTap('court',${i},${j},'${tn}')"`:''}>空位(待遞補)</span>`;
       const selfCell=session.me.id===id;
       const seld=sameLoc(liveSel,{t:'court',i,j,team:tn});
-      const xbtn=(!started&&(mgr||selfCell))?`<button class="mini red" style="padding:2px 8px;" onclick="event.stopPropagation();courtCancel(${i},'${tn}',${j})">✕</button>`:'';
-      return `<span class="pchip${seld?' selchip':''}" ${attrs} ${mgr?`onclick="liveTap('court',${i},${j},'${tn}')"`:''}>${esc(mname(id))}<small>${melo(id)}</small>${xbtn}</span>`;
-    }).join('');
-    html+=`<div class="row">${team(m.teamA,'A')}<span class="sub"><b>VS</b></span>${team(m.teamB,'B')}</div>`;
+      const xbtn=(!started&&(mgr||selfCell))?`<button class="cbx" onclick="event.stopPropagation();courtCancel(${i},'${tn}',${j})">✕</button>`:'';
+      return `<span class="pchip${seld?' selchip':''}" ${attrs} ${mgr?`onclick="liveTap('court',${i},${j},'${tn}')"`:''}><span class="cbp-txt"><span class="cbp-name">${esc(mname(id))}</span><span class="cbp-elo">${melo(id)}</span></span>${xbtn}</span>`;
+    }).join('')+`</div>`;
+    cb+=`<div class="cb-teams">${team(m.teamA,'A')}<div class="cb-vs">VS</div>${team(m.teamB,'B')}</div>`;
     if(mgr){
-      html+= started
-        ? `<div class="row"><button class="ok" style="flex:1;font-size:18px;" onclick="liveEnd(${i})">比賽結束</button><button class="mini red" onclick="liveAbort(${i})">取消比賽</button></div>`
-        : `<div class="row"><button class="pri" style="flex:1;font-size:18px;" onclick="liveStart(${i})">▶ 開始比賽</button></div>`;
+      cb+= started
+        ? `<div class="row"><button class="ok" style="flex:1;font-size:19px;padding:14px;" onclick="liveEnd(${i})">比賽結束</button><button class="mini red" onclick="liveAbort(${i})">取消比賽</button></div>`
+        : `<div class="row"><button class="pri" style="flex:1;font-size:19px;padding:14px;" onclick="liveStart(${i})">▶ 開始比賽</button></div>`;
     }
+    cb+='</div>';
+    html+=cb;
   }
-  html+='</div>';
+  html+='</div></div>';
   const zh=['一','二','三','四'];
   html+='<div class="card"><h2>⏳ 等待場次</h2>';
   for(let i=0;i<st.slotCount;i++){
@@ -1281,7 +1387,7 @@ function renderLive(){
       }
       const selfCell=session.me.id===v.id;
       const seld=sameLoc(liveSel,{t:'slot',i,j,team:''});
-      const xbtn=(mgr||selfCell)?`<button class="mini red" style="padding:2px 8px;" onclick="event.stopPropagation();slotCancel(${i},${j})">✕</button>`:'';
+      const xbtn=(mgr||selfCell)?`<button class="cbx sm" onclick="event.stopPropagation();slotCancel(${i},${j})">✕</button>`:'';
       return `<span class="pchip${seld?' selchip':''}" ${attrs} ${mgr?`onclick="liveTap('slot',${i},${j},'')"`:''}>${esc(mname(v.id))}<small>${melo(v.id)}</small>${xbtn}</span>`;
     };
     const holed=s.p.some((x,j)=>!x && s.lock && s.lock[j]);
@@ -1308,19 +1414,17 @@ function renderLive(){
   html+='</div>';
   if(mgr){
     html+=`<div class="card">
-      <div class="sub">💡 按住名字約半秒即可拖曳：拖到另一人＝互換、拖到空位＝移入遞補；也可以點兩位球員互換</div>
-      <div class="row" style="margin-top:12px;">
+      <div class="row">
         <button class="danger" style="flex:1;padding:14px;font-size:17px;" onclick="liveReset()">🌅 結束今天（清空現場名單）</button>
       </div>
     </div>`;
   }
   box.innerHTML=html;
-  if(checkinOpen) renderCheckin();
 }
-window.openCheckin=()=>{ checkinOpen=true; renderCheckin(); $('checkinDlg').classList.add('show'); };
-window.closeCheckin=()=>{ checkinOpen=false; $('checkinDlg').classList.remove('show'); };
+window.openCheckin=()=>showView('checkin');
 function renderCheckin(){
-  const el=$('checkinList'); if(!el || !liveState) return;
+  const el=$('checkinView'); if(!el) return;
+  if(!liveState){ el.innerHTML='<div class="card"><div class="sub">載入中…（或尚未綁定打球日）</div></div>'; return; }
   const occ=occupiedIds();
   const mgr=isMgr();
   const ev=liveEvent();
@@ -1337,7 +1441,10 @@ function renderCheckin(){
       ${canDo?`<button class="ok" style="padding:8px 22px;" onclick="liveCheckIn('${s.memberId}')">簽到</button>`:''}
     </div>`;
   }).join('');
-  el.innerHTML=rows||'<div class="sub">此打球日尚無正取名單（或現場未綁定打球日）</div>';
+  const ttl=ev?`${fmtDate(ev.dateStr)} ${ev.startStr||''}${ev.endStr?'–'+ev.endStr:''}${ev.venueName?' 📍'+esc(ev.venueName):''}`:'';
+  el.innerHTML=`<div class="card"><h2>✅ 簽到 <span class="sub">${ttl}</span></h2>
+    <div class="sub" style="margin-bottom:8px;">請點自己名字旁的「簽到」</div>
+    ${rows||'<div class="sub">此打球日尚無正取名單（或現場未綁定打球日）</div>'}</div>`;
 }
 setInterval(()=>{ if(session && liveState && $('liveView') && !$('liveView').classList.contains('hide')) renderLive(); }, 30000);
 setInterval(()=>{ if(session && session.teamId && watchDay && watchDay!==todayStr()) watchEvents(); }, 60000);  // 跨夜自動更新報名清單
