@@ -192,7 +192,7 @@ const firebaseConfig = {
   messagingSenderId: "223475807993",
   appId: "1:223475807993:web:e62e327f9a8ae43e479428"
 };
-const APP_VER='v2.3.3（2026-07-23）';
+const APP_VER='v2.3.4（2026-07-23）';
 document.getElementById('verTag').textContent='版本 '+APP_VER;
 const fbApp = initializeApp(firebaseConfig);
 const db = getFirestore(fbApp);
@@ -665,6 +665,8 @@ async function renderManage(){
   }
   if(manageTab==='sys'){
     body=`<div class="card"><h2>系統設定</h2>
+      <div class="item"><span class="nm">自動排場（比賽結束後自動安排下一場）</span>
+        <button class="mini${liveState&&liveState.paused?' red':' act'}" onclick="livePause();setManageTab('sys')">${liveState&&liveState.paused?'⏸ 已暫停，點此恢復':'▶ 運作中，點此暫停'}</button></div>
       <div class="item"><span class="nm">語音播報（開始比賽時唸出場次與球員名單）</span>
         <button class="mini${voiceOn()?' act':''}" onclick="liveVoice();setManageTab('sys')">${voiceOn()?'🔊 開啟中':'🔇 已關閉'}</button></div>
       <div class="sub" style="margin-top:8px;">語音播報為各裝置獨立設定，請在球場使用的那台平板上開啟。</div>
@@ -1054,6 +1056,7 @@ window.liveRename = async ci=>{ if(!isMgr()) return;
   if(!v||!v.trim()) return; liveState.courts[ci].label=v.trim().slice(0,6); saveLive(); };
 window.liveReset = async ()=>{ if(!isMgr()) return;
   if(!await askConfirm('結束今天？現場名單全部清空（積分與對戰紀錄保留）')) return;
+  if(!await askConfirm('再次確認：確定要結束今天嗎？')) return;
   const keep=liveState.courts.map(c=>c.label);
   const cc=liveState.courtCount, scnt=liveState.slotCount;
   liveState=defaultLive();
@@ -1070,28 +1073,7 @@ function renderLive(){
   if(!liveState){ box.innerHTML='<div class="card"><div class="sub">載入中…</div></div>'; return; }
   const st=liveState, mgr=isMgr();
   let html='';
-  // 打球日資訊
-  const bev=liveEvent();
-  const evs=Object.values(eventCache).sort((a,b)=>a.dateStr.localeCompare(b.dateStr));
-  const bl=bev?(signupCache[bev.id]||[]):[];
-  const bcap=bev?(bev.capacity||16):0;
-  html+=`<div class="card"><div class="evhead">
-    ${bev?`<span class="evdate">${fmtDate(bev.dateStr)}</span>
-      <span class="evtime">${esc(bev.startStr||'')}${bev.endStr?'–'+esc(bev.endStr):''}</span>
-      ${bev.venueName?`<span class="evvenue">📍${esc(bev.venueName)}</span>`:''}
-      <span class="cnt">報名 ${Math.min(bl.length,bcap)}/${bcap}${bl.length>bcap?`｜候補 ${bl.length-bcap}`:''}｜場地 ${bev.courtCount||2}｜等待格 ${bev.slotCount||2}</span>`
-     :`<span class="sub">今天沒有對應的打球日${mgr?'，請用頁首的下拉選單選擇場次':''}</span>`}
-    <div class="spacer"></div>
-  </div>${bev&&bev.note?`<div class="sub" style="margin-top:4px;">${esc(bev.note)}</div>`:''}</div>`;
-  if(mgr){
-    html+=`<div class="card"><div class="row">
-      <button class="mini${st.paused?' red':''}" onclick="livePause()">${st.paused?'▶ 恢復排場':'⏸ 暫停排場'}</button>
-      <button class="mini red" onclick="liveReset()">🌅 結束今天</button>
-    </div>
-    ${st.paused?'<div class="notice">已暫停自動排場</div>':''}
-    <div class="sub">💡 點兩位球員可互換位置（場上／等待格／排隊區皆可），點空位可把選取的球員移入</div>
-    </div>`;
-  }
+  if(st.paused) html+='<div class="notice" style="margin-bottom:12px;">⏸ 已暫停自動排場（管理 → ⚙ 系統 可恢復）</div>';
   html+='<div class="card"><h2>🏸 球場</h2>';
   for(let i=0;i<st.courtCount;i++){
     const c=st.courts[i], m=c.match;
@@ -1147,6 +1129,14 @@ function renderLive(){
     ${(mgr||session.me.id===id)?`<button class="mini act" onclick="liveUnrest('${id}')">回排隊區</button>`:''}
     ${mgr?`<button class="mini red" onclick="liveLeave('${id}')">離場</button>`:''}</div>`).join('')||'<div class="sub">無人休息</div>';
   html+='</div>';
+  if(mgr){
+    html+=`<div class="card">
+      <div class="sub">💡 點兩位球員可互換位置（場上／等待格／排隊區皆可），點空位可把選取的球員移入</div>
+      <div class="row" style="margin-top:12px;">
+        <button class="danger" style="flex:1;padding:14px;font-size:17px;" onclick="liveReset()">🌅 結束今天（清空現場名單）</button>
+      </div>
+    </div>`;
+  }
   box.innerHTML=html;
   if(checkinOpen) renderCheckin();
 }
