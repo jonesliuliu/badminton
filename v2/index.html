@@ -205,6 +205,17 @@
   </div>
 </div>
 
+<div class="overlay" id="planAddDlg">
+  <div class="dlgbox" style="max-width:360px;">
+    <div class="msg" style="font-weight:700;">新增月繳球友</div>
+    <div class="field"><label>月份</label><input type="month" id="paMonth" onchange="paFillMembers()"></div>
+    <div class="field"><label>球友</label><select id="paMember"></select></div>
+    <div class="dlgbtns">
+      <button class="cancel" onclick="closePlanAdd()">取消</button>
+      <button class="ok" onclick="confirmPlanAdd()">確認新增</button>
+    </div>
+  </div>
+</div>
 <div class="overlay" id="evsetDlg">
   <div class="dlgbox">
     <div class="msg" id="evsetTitle" style="font-weight:700;"></div>
@@ -270,7 +281,7 @@ const firebaseConfig = {
   messagingSenderId: "223475807993",
   appId: "1:223475807993:web:e62e327f9a8ae43e479428"
 };
-const APP_VER='v2.8.1-beta（2026-07-23）';
+const APP_VER='v2.8.2-beta（2026-07-23）';
 document.getElementById('verTag').textContent='版本 '+APP_VER;
 const fbApp = initializeApp(firebaseConfig);
 const db = getFirestore(fbApp);
@@ -912,25 +923,52 @@ async function loadPlan(){
   await refreshMembers();
   const ids=planCache.memberIds||[];
   const leaves=planCache.leaves||[];
-  const g={}; leaves.forEach(x=>{ (g[x.name]=g[x.name]||[]).push(x.dateStr); });
   el.innerHTML=`
-    <div class="divider">月繳成員（點名字切換，綠色＝已加入）</div>
-    <div class="row">${membersCache.map(m=>`<button class="mini ${ids.includes(m.id)?'act':''}" onclick="planToggle('${m.id}')">${esc(m.name)}</button>`).join('')||'尚無成員'}</div>
-    <div class="row" style="margin-top:10px;"><button class="ok" onclick="planApply()">套用月繳名單到 ${planYm} 的打球日</button></div>
-    <div class="sub">建立或開放該月打球日時會自動加入月繳報名；此按鈕用於補同步已存在的場次。</div>
-    <div class="divider">請假統計（${leaves.length} 筆）</div>
-    ${Object.entries(g).map(([n,ds])=>`<div class="item"><span class="nm">${esc(n)}</span>
-      <span class="sub">請假 ${ds.length} 次（${ds.map(x=>x.slice(5).replace('-','/')).join('、')}）</span></div>`).join('')
-      ||'<div class="sub">本月尚無請假紀錄</div>'}`;
+    <div class="row" style="margin-top:6px;">
+      <button class="ok" onclick="openPlanAdd()">＋ 新增月繳球友</button>
+      <button class="pri" onclick="planApply()">套用到 ${planYm} 的打球日</button>
+    </div>
+    <div class="sub">建立或開放該月打球日時會自動加入月繳報名；「套用」用於補同步已存在的場次。</div>
+    <div class="divider">${planYm} 月繳名單（${ids.length} 人）</div>
+    ${ids.map(mid=>{
+      const m=membersCache.find(x=>x.id===mid);
+      const ds=leaves.filter(l=>l.memberId===mid).map(l=>l.dateStr.slice(5).replace('-','/'));
+      return `<div class="item"><span class="nm">${esc(m?m.name:'（已刪除的成員）')}</span>
+        <span class="sub">${ds.length?`請假 ${ds.length} 次（${ds.join('、')}）`:'無請假'}</span>
+        <button class="mini red" onclick="planRemove('${mid}')">移除</button></div>`;
+    }).join('')||'<div class="sub">本月尚無月繳球友，點「＋ 新增月繳球友」加入</div>'}`;
 }
-window.planToggle = async mid=>{
-  const ids=new Set(planCache.memberIds||[]);
-  ids.has(mid)?ids.delete(mid):ids.add(mid);
-  planCache.memberIds=[...ids];
+window.planRemove = async mid=>{
+  const m=membersCache.find(x=>x.id===mid);
+  if(!await askConfirm(`將「${m?m.name:'此成員'}」從 ${planYm} 月繳名單移除？（請假紀錄保留）`)) return;
+  planCache.memberIds=(planCache.memberIds||[]).filter(x=>x!==mid);
   delete planSetCache[planYm];
   await safeWrite(()=>setDoc(doc(db,'teams',session.teamId,'plans',planYm),
-    {memberIds:planCache.memberIds}, {merge:true}));
+    {memberIds:planCache.memberIds}, {merge:true}), '已移除');
   loadPlan();
+};
+window.openPlanAdd = ()=>{
+  $('paMonth').value=planYm;
+  paFillMembers();
+  $('planAddDlg').classList.add('show');
+};
+window.closePlanAdd = ()=>$('planAddDlg').classList.remove('show');
+window.paFillMembers = async ()=>{
+  const ym=$('paMonth').value||planYm;
+  const pids=await getPlanIds(ym);
+  const opts=membersCache.filter(m=>!pids.has(m.id));
+  $('paMember').innerHTML=opts.map(m=>`<option value="${m.id}">${esc(m.name)}</option>`).join('')
+    ||'<option value="">（該月所有成員皆已月繳）</option>';
+};
+window.confirmPlanAdd = async ()=>{
+  const ym=$('paMonth').value, mid=$('paMember').value;
+  if(!ym||!mid){ toast('請選擇月份與球友'); return; }
+  delete planSetCache[ym];
+  const m=membersCache.find(x=>x.id===mid);
+  await safeWrite(()=>setDoc(doc(db,'teams',session.teamId,'plans',ym),
+    {memberIds: arrayUnion(mid)}, {merge:true}), `${m?m.name:''} 已加入 ${ym} 月繳`);
+  closePlanAdd();
+  if(ym===planYm) loadPlan();
 };
 window.planApply = async ()=>{
   const evs=Object.values(eventCache).filter(e=>e.dateStr.startsWith(planYm));
