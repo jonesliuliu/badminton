@@ -359,7 +359,7 @@ const firebaseConfig = {
   messagingSenderId: "223475807993",
   appId: "1:223475807993:web:e62e327f9a8ae43e479428"
 };
-const APP_VER='v2.10.0（2026-07-24）';
+const APP_VER='v2.10.1（2026-07-24）';
 try{ history.scrollRestoration='manual'; }catch(e){}
 function fitHeader(){}
 function resetScroll(){ const m=document.getElementById('appView'); if(m) m.scrollTop=0; window.scrollTo(0,0); }
@@ -1221,8 +1221,15 @@ window.toggleLock = async ()=>{
   }else{
     const pw=await askInput('輸入管理者密碼解鎖','password');
     if(pw===null) return;
-    const mDoc=await getDoc(doc(membersCol(), session.me.id));
-    if(!mDoc.exists() || mDoc.data().hash!==hash(pw)){ toast('密碼錯誤'); return; }
+    let ok=false;
+    if(session.me.id==='__admin__'){                 // 總管理者進入模式 → 比對系統管理者密碼
+      const snap=await getDocs(collection(db,'admins'));
+      ok=snap.docs.some(d=>d.data().hash===hash(pw));
+    }else{
+      const mDoc=await getDoc(doc(membersCol(), session.me.id));
+      ok=mDoc.exists() && mDoc.data().hash===hash(pw);
+    }
+    if(!ok){ toast('密碼錯誤'); return; }
     localStorage.removeItem('bm2_lock');
     applyLockUI(); toast('已解鎖');
   }
