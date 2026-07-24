@@ -359,7 +359,7 @@ const firebaseConfig = {
   messagingSenderId: "223475807993",
   appId: "1:223475807993:web:e62e327f9a8ae43e479428"
 };
-const APP_VER='v2.10.2（2026-07-24）';
+const APP_VER='v2.11.0（2026-07-24）';
 try{ history.scrollRestoration='manual'; }catch(e){}
 function fitHeader(){}
 function resetScroll(){ const m=document.getElementById('appView'); if(m) m.scrollTop=0; window.scrollTo(0,0); }
@@ -442,6 +442,24 @@ const membersCol = () => collection(db,'teams',session.teamId,'members');
 const eventsCol  = () => collection(db,'teams',session.teamId,'events');
 const venuesCol  = () => collection(db,'teams',session.teamId,'venues');
 const signupsCol = ev => collection(db,'teams',session.teamId,'events',ev,'signups');
+
+/* ---------- 自動更新：偵測到新版本就重新載入 ---------- */
+async function checkForUpdate(){
+  try{
+    const r=await fetch(location.pathname+'?_ver='+Date.now(), {cache:'no-store'});
+    const t=await r.text();
+    const m=t.match(/APP_VER='([^']+)'/);
+    if(m && m[1]!==APP_VER){
+      if(!sessionStorage.getItem('bm2_reloaded_'+m[1])){   // 每個新版本只自動重載一次，避免迴圈
+        sessionStorage.setItem('bm2_reloaded_'+m[1],'1');
+        location.reload();
+      }
+    }
+  }catch(e){}
+}
+setTimeout(checkForUpdate, 4000);                    // 開啟後檢查
+setInterval(checkForUpdate, 5*60*1000);              // 每 5 分鐘檢查
+document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) checkForUpdate(); });  // 重新開啟 App 時檢查
 
 /* ---------- 啟動 ---------- */
 const bootTimer=setTimeout(()=>$('errbar').classList.add('show'), 10000);
