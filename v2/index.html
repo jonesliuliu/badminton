@@ -116,6 +116,7 @@
     display:flex; align-items:center; justify-content:center; gap:5px;}
   .tabs button.on{background:var(--blue); color:#fff; font-weight:700;}
   .hide{display:none;}
+  body.locked .lockhide{display:none !important;}
   .overlay{position:fixed; inset:0; background:rgba(0,0,0,.6); display:none; align-items:center; justify-content:center; z-index:50; padding:16px;}
   .overlay.show{display:flex;}
   .dlgbox{background:var(--panel); border:1px solid var(--line); border-radius:18px; padding:22px; width:min(420px,100%);}
@@ -170,10 +171,11 @@
   <span id="navDiv" class="hide" style="width:2px;align-self:stretch;margin:6px 4px;background:#475569;border-radius:1px;"></span>
   <button class="hbtn on" id="navSignup" onclick="showView('signup')"><svg class="lni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg> 報名</button>
   <button class="hbtn" id="navRank" onclick="showView('rank')"><svg class="lni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="20" x2="6" y2="13"/><line x1="12" y1="20" x2="12" y2="5"/><line x1="18" y1="20" x2="18" y2="10"/></svg> 排行</button>
-  <button class="hbtn hide" id="navManage" onclick="showView('manage')"><svg class="lni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="7" x2="20" y2="7"/><circle cx="9" cy="7" r="2.4"/><line x1="4" y1="17" x2="20" y2="17"/><circle cx="15" cy="17" r="2.4"/></svg> 管理</button>
-  <button class="hbtn" onclick="openManual()"><svg class="lni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.4 2.3c-.8.3-1.4 1-1.4 1.9v.3"/><line x1="11.5" y1="17" x2="11.6" y2="17"/></svg> 手冊</button>
-  <button class="hbtn" id="btnPw" onclick="changeMyPw()"><svg class="lni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="16" r="4"/><path d="M11 13L20 4"/><path d="M16.5 7.5l3 3"/></svg> 改密碼</button>
-  <button class="hbtn" onclick="logout()">登出</button>
+  <button class="hbtn hide lockhide" id="navManage" onclick="showView('manage')"><svg class="lni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="7" x2="20" y2="7"/><circle cx="9" cy="7" r="2.4"/><line x1="4" y1="17" x2="20" y2="17"/><circle cx="15" cy="17" r="2.4"/></svg> 管理</button>
+  <button class="hbtn lockhide" onclick="openManual()"><svg class="lni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.4 2.3c-.8.3-1.4 1-1.4 1.9v.3"/><line x1="11.5" y1="17" x2="11.6" y2="17"/></svg> 手冊</button>
+  <button class="hbtn lockhide" id="btnPw" onclick="changeMyPw()"><svg class="lni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="16" r="4"/><path d="M11 13L20 4"/><path d="M16.5 7.5l3 3"/></svg> 改密碼</button>
+  <button class="hbtn lockonly hide" id="lockBtn" onclick="toggleLock()">🔒 鎖定現場</button>
+  <button class="hbtn lockhide" onclick="logout()">登出</button>
 </header>
 
 <!-- 登入 -->
@@ -203,7 +205,7 @@
   <button id="bNavCheckin" onclick="showView('checkin')"><span class="ic"><svg class="lni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.5 2.5L16 9.5"/></svg></span>簽到</button>
   <button id="bNavSignup" onclick="showView('signup')"><span class="ic"><svg class="lni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg></span>報名</button>
   <button id="bNavRank" onclick="showView('rank')"><span class="ic"><svg class="lni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="20" x2="6" y2="13"/><line x1="12" y1="20" x2="12" y2="5"/><line x1="18" y1="20" x2="18" y2="10"/></svg></span>排行</button>
-  <button id="bNavManage" class="hide" onclick="showView('manage')"><span class="ic"><svg class="lni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="7" x2="20" y2="7"/><circle cx="9" cy="7" r="2.4"/><line x1="4" y1="17" x2="20" y2="17"/><circle cx="15" cy="17" r="2.4"/></svg></span>管理</button>
+  <button id="bNavManage" class="hide lockhide" onclick="showView('manage')"><span class="ic"><svg class="lni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="7" x2="20" y2="7"/><circle cx="9" cy="7" r="2.4"/><line x1="4" y1="17" x2="20" y2="17"/><circle cx="15" cy="17" r="2.4"/></svg></span>管理</button>
   <button onclick="openMore()"><span class="ic"><svg class="lni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg></span>更多</button>
 </nav>
 
@@ -211,8 +213,9 @@
   <div class="dlgbox" style="max-width:340px;">
     <div class="dlgbtns" style="flex-direction:column;margin-top:0;">
       <button class="cancel" onclick="closeMore();openManual()"><svg class="lni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.4 2.3c-.8.3-1.4 1-1.4 1.9v.3"/><line x1="11.5" y1="17" x2="11.6" y2="17"/></svg> 操作手冊</button>
-      <button class="cancel" onclick="closeMore();changeMyPw()"><svg class="lni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="16" r="4"/><path d="M11 13L20 4"/><path d="M16.5 7.5l3 3"/></svg> 改密碼</button>
-      <button class="danger" onclick="logout()">登出</button>
+      <button class="cancel lockhide" onclick="closeMore();changeMyPw()"><svg class="lni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="16" r="4"/><path d="M11 13L20 4"/><path d="M16.5 7.5l3 3"/></svg> 改密碼</button>
+      <button class="cancel lockonly hide" id="lockBtnM" onclick="closeMore();toggleLock()">🔒 鎖定現場</button>
+      <button class="danger lockhide" onclick="logout()">登出</button>
       <button class="cancel" onclick="closeMore()">關閉</button>
     </div>
   </div>
@@ -356,7 +359,7 @@ const firebaseConfig = {
   messagingSenderId: "223475807993",
   appId: "1:223475807993:web:e62e327f9a8ae43e479428"
 };
-const APP_VER='v2.9.1（2026-07-23）';
+const APP_VER='v2.10.0-beta（2026-07-24）';
 try{ history.scrollRestoration='manual'; }catch(e){}
 function fitHeader(){}
 function resetScroll(){ const m=document.getElementById('appView'); if(m) m.scrollTop=0; window.scrollTo(0,0); }
@@ -539,6 +542,7 @@ async function enterApp(){
   $('navDiv').classList.remove('hide');
   $('botbar').classList.add('ready');
   $('bNavManage').classList.toggle('hide', session.me.role!=='manager');
+  applyLockUI();
   await refreshMembers();
   await refreshVenues();
   watchEvents();
@@ -1199,6 +1203,30 @@ let boundEventId=null;   // 本裝置目前檢視/操作的打球日
 const liveDocRef = eid => doc(db,'teams',session.teamId,'live',eid);
 const matchesCol = () => collection(db,'teams',session.teamId,'matches');
 const isMgr = () => session && session.me.role==='manager';
+/* ---- 現場鎖定模式（本裝置設定，避免現場誤觸管理功能） ---- */
+function locked(){ return localStorage.getItem('bm2_lock')==='1'; }
+function applyLockUI(){
+  const mgr = session && session.me.role==='manager';
+  const on = locked() && mgr;
+  document.body.classList.toggle('locked', on);
+  // 鎖定切換鈕只有管理者看得到
+  ['lockBtn','lockBtnM'].forEach(id=>{ const b=$(id); if(b){ b.classList.toggle('hide', !mgr); b.textContent = on?'🔓 解鎖':'🔒 鎖定現場'; }});
+}
+window.toggleLock = async ()=>{
+  if(!isMgr()) return;
+  if(!locked()){
+    if(!await askConfirm('開啟現場鎖定？將隱藏管理、結束今天、登出等功能，避免平板在現場被誤觸。解鎖需輸入管理者密碼。')) return;
+    localStorage.setItem('bm2_lock','1');
+    applyLockUI(); showView('live'); toast('已鎖定現場');
+  }else{
+    const pw=await askInput('輸入管理者密碼解鎖','password');
+    if(pw===null) return;
+    const mDoc=await getDoc(doc(membersCol(), session.me.id));
+    if(!mDoc.exists() || mDoc.data().hash!==hash(pw)){ toast('密碼錯誤'); return; }
+    localStorage.removeItem('bm2_lock');
+    applyLockUI(); toast('已解鎖');
+  }
+};
 const mname = id => { const m=membersCache.find(x=>x.id===id); return m?m.name:'？'; };
 const melo  = id => { const m=membersCache.find(x=>x.id===id); return m?(m.elo??START_ELO):START_ELO; };
 function fmtWait(ms){ const m=Math.floor(ms/60000); return m<1?'剛到':(m<60?m+' 分':Math.floor(m/60)+' 時 '+(m%60)+' 分'); }
@@ -1369,11 +1397,12 @@ function ldragActivate(){
   document.body.classList.add('dragging');
 }
 document.addEventListener('pointerdown', e=>{
-  if(!isMgr() || !liveState) return;
+  if(!liveState) return;
   const chip=e.target.closest('[data-lt]');
   if(!chip || e.target.closest('button')) return;
   const loc={t:chip.dataset.lt, i:+chip.dataset.li, j:+chip.dataset.lj, team:chip.dataset.lteam||''};
   const v=locGet(loc); if(!v) return;
+  if(!isMgr() && v.id!==session.me.id) return;   // 球友只能拖曳自己
   ldrag={loc, name:mname(v.id), startX:e.clientX, startY:e.clientY, lastX:e.clientX, lastY:e.clientY,
          active:false, ghost:null, timer:setTimeout(ldragActivate,300)};
 });
@@ -1419,10 +1448,11 @@ document.addEventListener('contextmenu', e=>{ if(e.target.closest('[data-lt]')) 
 document.addEventListener('selectstart', e=>{ if(e.target.closest('[data-lt]')) e.preventDefault(); });
 window.liveTap = (t,i,j,team)=>{
   if(dragDone) return;
-  if(!isMgr()) return;
   const loc={t,i,j,team:team||''};
   if(!liveSel){
-    if(!locGet(loc)) return;                    // 先選人，不能先選空位
+    const v=locGet(loc);
+    if(!v) return;                              // 先選人，不能先選空位
+    if(!isMgr() && v.id!==session.me.id){ toast('你只能移動自己'); return; }  // 球友只能先選自己
     liveSel=loc; renderLive(); return;
   }
   if(sameLoc(liveSel,loc)){ liveSel=null; renderLive(); return; }
@@ -1452,6 +1482,10 @@ function locSet(l,v){
 }
 function doSwap(a,b){
   const va=locGet(a), vb=locGet(b);
+  if(!isMgr()){                                 // 球友：互換必須涉及自己
+    const meIn=(va&&va.id===session.me.id)||(vb&&vb.id===session.me.id);
+    if(!meIn){ toast('你只能與自己相關的位置互換'); return; }
+  }
   const courtStarted=l=>l.t==='court' && liveState.courts[l.i].match && liveState.courts[l.i].match.startedAt;
   if((courtStarted(a)&&!vb)||(courtStarted(b)&&!va)){ toast('比賽進行中的位置不能留空'); return; }
   if(!va&&!vb) return;
@@ -1653,11 +1687,11 @@ function renderLive(){
                 : `<span class="tag t-promo">準備中</span></div>`;
     const team=(ids,tn)=>`<div class="cb-team ${tn==='A'?'a':'b'}">`+ids.map((id,j)=>{
       const attrs=`data-lt="court" data-li="${i}" data-lj="${j}" data-lteam="${tn}"`;
-      if(!id) return `<span class="emptycell" ${attrs} style="border-color:var(--amber);color:#fcd34d;" ${mgr?`onclick="liveTap('court',${i},${j},'${tn}')"`:''}>空位(待遞補)</span>`;
+      if(!id) return `<span class="emptycell" ${attrs} style="border-color:var(--amber);color:#fcd34d;" onclick="liveTap('court',${i},${j},'${tn}')">空位(待遞補)</span>`;
       const selfCell=session.me.id===id;
       const seld=sameLoc(liveSel,{t:'court',i,j,team:tn});
       const xbtn=(!started&&(mgr||selfCell))?`<button class="cbx" onclick="event.stopPropagation();courtCancel(${i},'${tn}',${j})">✕</button>`:'';
-      return `<span class="pchip${seld?' selchip':''}" ${attrs} ${mgr?`onclick="liveTap('court',${i},${j},'${tn}')"`:''}><span class="cbp-txt"><span class="cbp-name">${esc(mname(id))}</span><span class="cbp-elo">${melo(id)}</span></span>${xbtn}</span>`;
+      return `<span class="pchip${seld?' selchip':''}" ${attrs} onclick="liveTap('court',${i},${j},'${tn}')"><span class="cbp-txt"><span class="cbp-name">${esc(mname(id))}</span><span class="cbp-elo">${melo(id)}</span></span>${xbtn}</span>`;
     }).join('')+`</div>`;
     cb+=`<div class="cb-teams">${team(m.teamA,'A')}<div class="cb-vs">VS</div>${team(m.teamB,'B')}</div>`;
     if(mgr){
@@ -1678,12 +1712,12 @@ function renderLive(){
       const attrs=`data-lt="slot" data-li="${i}" data-lj="${j}" data-lteam=""`;
       if(!v){
         const locked=s.lock&&s.lock[j];
-        return `<span class="emptycell" ${attrs} style="${locked?'border-color:var(--amber);color:var(--amber);':''}" ${mgr?`onclick="liveTap('slot',${i},${j},'')"`:''}>${locked?'空位(待遞補)':'空位'}</span>`;
+        return `<span class="emptycell" ${attrs} style="${locked?'border-color:var(--amber);color:var(--amber);':''}" onclick="liveTap('slot',${i},${j},'')">${locked?'空位(待遞補)':'空位'}</span>`;
       }
       const selfCell=session.me.id===v.id;
       const seld=sameLoc(liveSel,{t:'slot',i,j,team:''});
       const xbtn=(mgr||selfCell)?`<button class="cbx sm" onclick="event.stopPropagation();slotCancel(${i},${j})">✕</button>`:'';
-      return `<span class="pchip${seld?' selchip':''}" ${attrs} ${mgr?`onclick="liveTap('slot',${i},${j},'')"`:''}>${esc(mname(v.id))}<small>${melo(v.id)}</small>${xbtn}</span>`;
+      return `<span class="pchip${seld?' selchip':''}" ${attrs} onclick="liveTap('slot',${i},${j},'')">${esc(mname(v.id))}<small>${melo(v.id)}</small>${xbtn}</span>`;
     };
     const holed=s.p.some((x,j)=>!x && s.lock && s.lock[j]);
     html+=`<div class="divider"><b style="color:var(--txt);">等待${zh[i]}</b> ${holed?'<span class="tag t-wait">缺人，請拖曳遞補</span>':''}</div>
@@ -1695,7 +1729,7 @@ function renderLive(){
   html+=st.pool.map((p,i)=>{
     const seld=sameLoc(liveSel,{t:'pool',i,j:0,team:''});
     return `<div class="item"><span class="num">${i+1}</span>
-      <span class="pchip${seld?' selchip':''}" data-lt="pool" data-li="${i}" data-lj="0" data-lteam="" ${mgr?`onclick="liveTap('pool',${i},0,'')"`:''}>${esc(mname(p.id))}<small>${melo(p.id)}</small></span>
+      <span class="pchip${seld?' selchip':''}" data-lt="pool" data-li="${i}" data-lj="0" data-lteam="" onclick="liveTap('pool',${i},0,'')">${esc(mname(p.id))}<small>${melo(p.id)}</small></span>
       <span class="sub">等 ${fmtWait(Date.now()-p.since)}</span><div class="spacer"></div>
       ${(mgr||session.me.id===p.id)?`<button class="mini" onclick="liveRest('${p.id}')">休息</button>`:''}
       ${mgr?`<button class="mini red" onclick="liveLeave('${p.id}')">離場</button>`:''}
@@ -1708,7 +1742,7 @@ function renderLive(){
     ${mgr?`<button class="mini red" onclick="liveLeave('${id}')">離場</button>`:''}</div>`).join('')||'<div class="sub">無人休息</div>';
   html+='</div>';
   if(mgr){
-    html+=`<div class="card">
+    html+=`<div class="card lockhide">
       <div class="row">
         <button class="danger" style="flex:1;padding:14px;font-size:17px;" onclick="liveReset()">🌅 結束今天（清空現場名單）</button>
       </div>
@@ -1773,7 +1807,7 @@ async function renderRank(){
   <div class="card"><h2>今日對戰紀錄（${today.length} 場）</h2>
     ${today.map(h=>`<div class="item">
       <span class="nm"><b>場地${esc(h.court)}</b>｜${esc(h.a)} <b style="color:var(--teal);">${h.sa}:${h.sb}</b> ${esc(h.b)} <span class="sub">±${String(h.delta).replace(/[+\-]/,'')}</span></span>
-      ${mgr?`<button class="mini" onclick="editMatch('${h.id}')">✎ 修改</button><button class="mini red" onclick="delMatch('${h.id}')">刪除</button>`:''}
+      ${mgr?`<button class="mini lockhide" onclick="editMatch('${h.id}')">✎ 修改</button><button class="mini red lockhide" onclick="delMatch('${h.id}')">刪除</button>`:''}
     </div>`).join('')||'<div class="sub">今日尚無紀錄</div>'}
   </div>
   <div class="card"><h2>ℹ️ 積分怎麼算（Elo 制）</h2>
