@@ -359,7 +359,7 @@ const firebaseConfig = {
   messagingSenderId: "223475807993",
   appId: "1:223475807993:web:e62e327f9a8ae43e479428"
 };
-const APP_VER='v2.11.0（2026-07-24）';
+const APP_VER='v2.11.1（2026-07-24）';
 try{ history.scrollRestoration='manual'; }catch(e){}
 function fitHeader(){}
 function resetScroll(){ const m=document.getElementById('appView'); if(m) m.scrollTop=0; window.scrollTo(0,0); }
@@ -445,6 +445,7 @@ const signupsCol = ev => collection(db,'teams',session.teamId,'events',ev,'signu
 
 /* ---------- 自動更新：偵測到新版本就重新載入 ---------- */
 async function checkForUpdate(){
+  if(!session) return;                               // 僅登入後才檢查
   try{
     const r=await fetch(location.pathname+'?_ver='+Date.now(), {cache:'no-store'});
     const t=await r.text();
