@@ -356,7 +356,7 @@ const firebaseConfig = {
   messagingSenderId: "223475807993",
   appId: "1:223475807993:web:e62e327f9a8ae43e479428"
 };
-const APP_VER='v2.9.0（2026-07-23）';
+const APP_VER='v2.9.1（2026-07-23）';
 try{ history.scrollRestoration='manual'; }catch(e){}
 function fitHeader(){}
 function resetScroll(){ const m=document.getElementById('appView'); if(m) m.scrollTop=0; window.scrollTo(0,0); }
@@ -587,6 +587,7 @@ async function renderAdmin(){
         <span class="sub">成員 ${r.count} 人｜管理者：${esc(r.mgrs.join('、')||'—')}｜近期打球日 ${r.evs} 場</span></span>
       <button class="mini" onclick="adminMove('${r.id}',-1)">↑</button>
       <button class="mini" onclick="adminMove('${r.id}',1)">↓</button>
+      <button class="mini" onclick="adminRenameTeam('${r.id}','${esc(r.name)}')">改名</button>
       <button class="mini act" onclick="adminEnterTeam('${r.id}')">進入</button>
       <button class="mini red" onclick="adminDelTeam('${r.id}','${esc(r.name)}')">刪除</button>
     </div>`).join('')||'<div class="sub">尚無球隊</div>'}
@@ -609,6 +610,16 @@ window.backToAdmin = ()=>{
   Object.keys(signupUnsubs).forEach(id=>{ signupUnsubs[id](); delete signupUnsubs[id]; delete signupCache[id]; delete eventCache[id]; });
   session={admin:true, me:{id:'__admin__', name:session.me.name, role:'admin'}};
   enterAdmin();
+};
+window.adminRenameTeam = async (tid,cur)=>{
+  const v=await askInput(`球隊新名稱（目前：${cur}）`,'text');
+  if(v===null) return;
+  const name=v.trim();
+  if(!name){ toast('名稱不能空白'); return; }
+  await loadTeams();
+  if(teams.some(t=>t.id!==tid && t.name===name)){ toast('球隊名稱已存在'); return; }
+  await safeWrite(()=>updateDoc(doc(db,'teams',tid),{name}), '球隊已更名為「'+name+'」');
+  renderAdmin();
 };
 window.adminMove = async (tid,dir)=>{
   const i=teams.findIndex(t=>t.id===tid);
